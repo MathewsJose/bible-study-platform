@@ -1,61 +1,194 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 📖 Bible API — Laravel 11 · PHP 8.4 · MongoDB · Elasticsearch · DDD · Clean Architecture
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A modern, scalable, and extensible **Bible microservice** built with cutting-edge backend architecture principles.  
+This project demonstrates **Domain-Driven Design (DDD)** and **Clean Architecture** in PHP/Laravel, leveraging **MongoDB** for persistence and **Elasticsearch** for powerful text search capabilities — all containerized with **Docker**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📜 Project Overview
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+This project is more than just a Bible API. Its core purpose is to provide **historical and theological insights** for every Book, Chapter, and Verse of the Bible.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+It aims to serve as a foundation for theological study tools, digital commentaries, or educational apps by combining structured Biblical data with historical context and interpretive layers.
 
-## Learning Laravel
+### Key Goals:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- 📚 **Historical Context** — Offer information about the period, culture, and background for each passage.
+- ✝️ **Theological Insights** — Highlight doctrinal significance, theological themes, and interpretations.
+- 🌍 **Search & Study** — Enable powerful verse-level searches using Elasticsearch, including theological keywords and historical terms.
+- 🧠 **Structured + Extensible** — Build using Domain-Driven Design and Clean Architecture so new features (like commentaries, cross-references, maps, timelines) can be added without breaking the core.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Whether you're a theologian, developer, or researcher, this application provides a modern backend infrastructure for Bible study — with data stored in MongoDB and indexed in Elasticsearch for blazing-fast retrieval.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## ✨ Features
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- ✅ **Laravel 11 + PHP 8.4** — Modern backend framework with latest PHP features  
+- 🧠 **DDD + Clean Architecture** — Separation of concerns, testability, and scalability  
+- 🧰 **MongoDB** — Primary data store for structured Bible content  
+- 🔍 **Elasticsearch** — Full-text search (fast lookup of verses and theological references)  
+- 🐳 **Dockerized Environment** — Ready-to-run development setup  
+- 🧪 **Seed Data + Indexing** — Populate Bible data and sync to Elasticsearch  
+- 🔌 **Extensible Architecture** — Add new use cases, domains, or search strategies with ease
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development/)**
-- **[Active Logic](https://activelogic.com)**
+## 🏗 Architecture Overview
 
-## Contributing
+The project follows a **layered hexagonal architecture**:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```
+┌───────────────────────────┐
+│   Interface Layer         │ ← Controllers, HTTP routes, CLI
+├───────────────────────────┤
+│   Application Layer       │ ← Use Cases (Business rules orchestration)
+├───────────────────────────┤
+│   Domain Layer            │ ← Entities, Value Objects, Repositories (interfaces)
+├───────────────────────────┤
+│   Infrastructure Layer    │ ← MongoDB, Elasticsearch, external services
+└───────────────────────────┘
+```
 
-## Code of Conduct
+- **MongoDB** → Source of truth for all structured data  
+- **Elasticsearch** → Indexed for blazing-fast verse & text search  
+- **Use Cases** mediate between interface and domain layers — no controllers touch the database directly.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## 🚀 Quick Start
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 1️⃣ Clone the Repository
 
-## License
+```bash
+git clone https://github.com/your-username/bible-project.git
+cd bible-project
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 2️⃣ Copy Environment File
+
+```bash
+cp .env.example .env
+```
+
+Update `.env` with MongoDB and Elasticsearch credentials (Docker defaults are provided).
+
+### 3️⃣ Start Docker Environment
+
+```bash
+docker-compose up -d
+```
+
+This will start:
+- App (Laravel)
+- MongoDB
+- Elasticsearch
+
+### 4️⃣ Install Dependencies
+
+```bash
+docker exec -it app composer install
+docker exec -it app php artisan key:generate
+```
+
+### 5️⃣ Seed the Database
+
+```bash
+docker exec -it app php artisan db:seed
+```
+
+(Optional) Sync seed data to Elasticsearch:
+
+```bash
+docker exec -it app php artisan search:reindex
+```
+
+---
+
+## 📚 Example Endpoints
+
+| Method | Endpoint                              | Description                              |
+|--------|---------------------------------------|------------------------------------------|
+| GET    | `/api/verse/{book}/{chapter}/{verse}` | Get a specific verse from MongoDB        |
+| GET    | `/api/search?query=grace`             | Full-text search via Elasticsearch       |
+
+**Example:**
+
+```bash
+curl http://localhost:8000/api/verse/John/3/16
+```
+
+---
+
+## 🧠 Domain-Driven Design Structure
+
+```
+app/
+├── Domain/
+│   └── Bible/
+│       ├── Entities/
+│       ├── Repositories/
+│       └── ValueObjects/
+├── Application/
+│   └── Bible/
+│       └── UseCases/
+├── Infrastructure/
+│   ├── Persistence/Mongo/
+│   └── Search/Elasticsearch/
+└── Interfaces/
+    └── Http/Controllers/
+```
+
+- **Entities**: Core domain models (e.g., Verse)
+- **Repositories**: Contracts/interfaces for data access
+- **UseCases**: Business logic orchestration
+- **Infrastructure**: Implementation of Repositories, search indexing, etc.
+- **Interfaces**: Controllers, routes, presentation layer
+
+---
+
+## 🧰 Technology Stack
+
+| Layer             | Technology                |
+|-------------------|---------------------------|
+| Language          | PHP 8.4                   |
+| Framework         | Laravel 11                |
+| Database          | MongoDB                   |
+| Search Engine     | Elasticsearch             |
+| Containerization  | Docker + Docker Compose   |
+| Architecture      | DDD + Clean Architecture  |
+
+---
+
+## 🧪 Running Tests
+
+```bash
+docker exec -it app php artisan test
+```
+
+You can also write domain-level unit tests and use case tests without touching the infrastructure.
+
+---
+
+## 🌱 Future Improvements
+
+- ✅ Add authentication & user-specific study notes
+- ✅ Implement advanced search strategies (e.g., fuzzy matching, verse context search)
+- ✅ Caching layer for high-traffic endpoints
+- ✅ Multilingual Bible versions support
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a new branch (`feature/add-commentaries`)
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request 🎉
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License.
