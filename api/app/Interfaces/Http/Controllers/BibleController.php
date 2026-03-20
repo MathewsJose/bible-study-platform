@@ -11,13 +11,9 @@ class BibleController extends Controller
 {
     public function __construct(private readonly GetVerseUseCase $useCase) {}
 
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, string $book, string $chapter, string $verse): JsonResponse
     {
-        $book = $request->book;
-        $chapter = (int) $request->chapter;
-        $verse = (int) $request->verse;        
-
-        $verseDTO = $this->useCase->execute($book, $chapter, $verse);
+        $verseDTO = $this->useCase->execute($book, (int) $chapter, (int) $verse);
 
         if (!$verseDTO) {
             return response()->json(['message' => 'Verse not found'], 404);

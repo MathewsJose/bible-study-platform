@@ -33,14 +33,14 @@ return [
     'connections' => [
         'mongodb' => [
             'driver'   => 'mongodb',
-            'host'     => env('DB_HOST', 'mongo'),
-            'port'     => env('DB_PORT', 27017),
-            'database' => env('DB_DATABASE'),
-            'username' => env('DB_USERNAME'),
-            'password' => env('DB_PASSWORD'),
+            'host'     => env('MONGODB_HOST', 'mongo'),
+            'port'     => env('MONGODB_PORT', 27017),
+            'database' => env('MONGODB_DATABASE', 'bible'),
+            'username' => env('MONGODB_USERNAME'),
+            'password' => env('MONGODB_PASSWORD'),
             'options'  => [
                 'authSource' => env('MONGODB_AUTH_SOURCE', 'admin'),
-            ]
+            ],
         ],
 
         'sqlite' => [
