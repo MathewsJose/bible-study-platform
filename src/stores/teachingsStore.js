@@ -1,31 +1,20 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
 import { fetchTeachingsData } from '../services/teachingsService';
+import { createAsyncResource } from '../utils/createAsyncResource';
 
 export const useTeachingsStore = defineStore('teachings', () => {
-  const items = ref([]);
-  const loading = ref(false);
-  const error = ref(null);
+  const resource = createAsyncResource(fetchTeachingsData, (data) => data.items || []);
 
   async function loadTeachingsData(book, chapter, verse) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const data = await fetchTeachingsData(book, chapter, verse);
-      items.value = data.items || [];
-    } catch (err) {
-      error.value = err.message;
-      items.value = [];
-    } finally {
-      loading.value = false;
-    }
+    return resource.load(book, chapter, verse);
   }
 
   return {
-    items,
-    loading,
-    error,
+    items: resource.data,
+    loading: resource.loading,
+    refreshing: resource.refreshing,
+    error: resource.error,
+    hasLoaded: resource.hasLoaded,
     loadTeachingsData,
   };
 });

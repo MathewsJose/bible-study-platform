@@ -1,31 +1,20 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
 import { fetchBibleContent } from '../services/bibleService';
+import { createAsyncResource } from '../utils/createAsyncResource';
 
 export const useBibleStore = defineStore('bible', () => {
-  const verses = ref([]);
-  const loading = ref(false);
-  const error = ref(null);
+  const resource = createAsyncResource(fetchBibleContent, (data) => data.verses || []);
 
   async function loadBibleContent(book, chapter) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const data = await fetchBibleContent(book, chapter);
-      verses.value = data.verses || [];
-    } catch (err) {
-      error.value = err.message;
-      verses.value = [];
-    } finally {
-      loading.value = false;
-    }
+    return resource.load(book, chapter);
   }
 
   return {
-    verses,
-    loading,
-    error,
+    verses: resource.data,
+    loading: resource.loading,
+    refreshing: resource.refreshing,
+    error: resource.error,
+    hasLoaded: resource.hasLoaded,
     loadBibleContent,
   };
 });

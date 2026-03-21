@@ -23,6 +23,9 @@ import TopBar from './TopBar.vue';
 import BibleReader from '../bible/BibleReader.vue';
 import HistoricalPanel from '../panels/HistoricalPanel.vue';
 import TeachingPanel from '../panels/TeachingPanel.vue';
+import { useReaderData } from '../../composables/useReaderData';
+
+useReaderData();
 </script>
 
 <style scoped>

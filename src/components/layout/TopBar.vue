@@ -2,6 +2,19 @@
   <header class="topbar">
     <div class="brand">Bible Study Platform</div>
 
+    <div class="status" aria-live="polite">
+      <span>{{ currentReference }}</span>
+      <span
+        v-if="
+          bibleStore.refreshing ||
+          historyStore.refreshing ||
+          teachingsStore.refreshing
+        "
+      >
+        Updating...
+      </span>
+    </div>
+
     <div class="controls">
       <label>
         <span>Book</span>
@@ -25,7 +38,6 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useSelectionStore } from '../../stores/selectionStore';
 import { useBibleStore } from '../../stores/bibleStore';
@@ -38,10 +50,10 @@ const bibleStore = useBibleStore();
 const historyStore = useHistoryStore();
 const teachingsStore = useTeachingsStore();
 
-const { selectedBook, selectedChapter, selectedVerse } = storeToRefs(selectionStore);
+const { currentReference, chapterOptions } = storeToRefs(selectionStore);
 
 const books = BIBLE_BOOKS;
-const chapters = computed(() => Array.from({ length: 50 }, (_, i) => i + 1));
+const chapters = chapterOptions;
 
 function onBookChange(event) {
   selectionStore.setBook(event.target.value);
@@ -50,28 +62,6 @@ function onBookChange(event) {
 function onChapterChange(event) {
   selectionStore.setChapter(event.target.value);
 }
-
-watch(
-  [selectedBook, selectedChapter],
-  async ([book, chapter]) => {
-    await bibleStore.loadBibleContent(book, chapter);
-    await Promise.all([
-      historyStore.loadHistoricalData(book, chapter, selectedVerse.value),
-      teachingsStore.loadTeachingsData(book, chapter, selectedVerse.value),
-    ]);
-  },
-  { immediate: true }
-);
-
-watch(
-  selectedVerse,
-  async (verse) => {
-    await Promise.all([
-      historyStore.loadHistoricalData(selectedBook.value, selectedChapter.value, verse),
-      teachingsStore.loadTeachingsData(selectedBook.value, selectedChapter.value, verse),
-    ]);
-  }
-);
 </script>
 
 <style scoped>
@@ -83,6 +73,7 @@ watch(
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
   padding: 1rem 1.25rem;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(8px);
@@ -93,6 +84,14 @@ watch(
   font-size: 1.1rem;
   font-weight: 700;
   color: #111827;
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+  color: #475569;
 }
 
 .controls {
