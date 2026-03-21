@@ -1,31 +1,20 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
 import { fetchHistoricalData } from '../services/historyService';
+import { createAsyncResource } from '../utils/createAsyncResource';
 
 export const useHistoryStore = defineStore('history', () => {
-  const items = ref([]);
-  const loading = ref(false);
-  const error = ref(null);
+  const resource = createAsyncResource(fetchHistoricalData, (data) => data.items || []);
 
   async function loadHistoricalData(book, chapter, verse) {
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const data = await fetchHistoricalData(book, chapter, verse);
-      items.value = data.items || [];
-    } catch (err) {
-      error.value = err.message;
-      items.value = [];
-    } finally {
-      loading.value = false;
-    }
+    return resource.load(book, chapter, verse);
   }
 
   return {
-    items,
-    loading,
-    error,
+    items: resource.data,
+    loading: resource.loading,
+    refreshing: resource.refreshing,
+    error: resource.error,
+    hasLoaded: resource.hasLoaded,
     loadHistoricalData,
   };
 });

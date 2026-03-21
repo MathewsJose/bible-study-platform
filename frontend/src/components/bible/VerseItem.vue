@@ -1,8 +1,13 @@
 <template>
-  <button class="verse-item" :class="{ selected }" @click="$emit('select', verse.verse)">
-    <span class="verse-number">{{ verse.verse }}</span>
-    <span class="verse-text">{{ verse.text }}</span>
-  </button>
+  <article class="verse-item" :class="{ selected }">
+    <button class="verse-body" type="button" @click="$emit('select', verse.verse)">
+      <span class="verse-number">{{ verse.verse }}</span>
+      <span class="verse-text">{{ verse.text }}</span>
+    </button>
+    <button class="bookmark-toggle" type="button" @click="$emit('toggle-bookmark', verse.verse)">
+      {{ bookmarked ? 'Bookmarked' : 'Bookmark' }}
+    </button>
+  </article>
 </template>
 
 <script setup>
@@ -15,17 +20,20 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  bookmarked: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-defineEmits(['select']);
+defineEmits(['select', 'toggle-bookmark']);
 </script>
 
 <style scoped>
 .verse-item {
   width: 100%;
-  text-align: left;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 0.9rem;
   padding: 1rem;
   border: 1px solid #e5e7eb;
@@ -45,6 +53,17 @@ defineEmits(['select']);
   background: #f8fafc;
 }
 
+.verse-body {
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .verse-number {
   font-size: 0.8rem;
   font-weight: 700;
@@ -57,5 +76,14 @@ defineEmits(['select']);
   font-size: 1.05rem;
   line-height: 1.8;
   color: #111827;
+}
+
+.bookmark-toggle {
+  align-self: flex-start;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
 }
 </style>
