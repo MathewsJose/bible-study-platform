@@ -1,22 +1,25 @@
-import axios from 'axios';
+import { useRuntimeConfig } from '#imports';
+import { $fetch } from 'ofetch';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+export function getApiBaseUrl() {
+  const config = useRuntimeConfig();
+  return config.public.apiBaseUrl || '';
+}
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+export async function apiGet(path, params) {
+  try {
+    return await $fetch(path, {
+      baseURL: getApiBaseUrl() || undefined,
+      params,
+      timeout: 10000,
+    });
+  } catch (error) {
     const message =
-      error.response?.data?.message ||
-      error.message ||
+      error?.data?.message ||
+      error?.statusMessage ||
+      error?.message ||
       'Unexpected API error';
-    return Promise.reject(new Error(message));
-  }
-);
 
-export default api;
+    throw new Error(message);
+  }
+}

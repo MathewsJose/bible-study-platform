@@ -7,6 +7,10 @@ const routes = [
     name: 'reader',
     component: ReaderView,
   },
+  {
+    path: '/reader',
+    redirect: '/',
+  },
 ];
 
 const router = createRouter({

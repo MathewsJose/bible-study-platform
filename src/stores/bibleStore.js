@@ -15,6 +15,7 @@ export const useBibleStore = defineStore('bible', () => {
     refreshing: resource.refreshing,
     error: resource.error,
     hasLoaded: resource.hasLoaded,
+    translation: 'RSV-CE',
     loadBibleContent,
   };
 });
