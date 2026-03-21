@@ -1,8 +1,18 @@
-import api from './api';
+import { apiGet, getApiBaseUrl } from './api';
+import { getSampleBibleContent } from './sampleData';
 
 export async function fetchBibleContent(book, chapter) {
-  const { data } = await api.get('/bible', {
-    params: { book, chapter },
-  });
-  return data;
+  if (!getApiBaseUrl()) {
+    return getSampleBibleContent(book, chapter);
+  }
+
+  try {
+    return await apiGet('/bible', { book, chapter });
+  } catch (error) {
+    if (book === 'John' && Number(chapter) === 1) {
+      return getSampleBibleContent(book, chapter);
+    }
+
+    throw error;
+  }
 }

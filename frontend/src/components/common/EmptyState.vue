@@ -1,5 +1,7 @@
 <template>
-  <div class="empty">{{ message }}</div>
+  <div class="rounded-2xl border border-dashed border-[var(--stroke)] px-4 py-6 text-sm leading-7 text-slate-500 dark:text-slate-400">
+    {{ message }}
+  </div>
 </template>
 
 <script setup>
@@ -11,9 +13,3 @@ defineProps({
 });
 </script>
 
-<style scoped>
-.empty {
-  padding: 1rem;
-  color: #6b7280;
-}
-</style>
