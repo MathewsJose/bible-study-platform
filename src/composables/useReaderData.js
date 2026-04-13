@@ -21,34 +21,48 @@ export function useReaderData() {
     verse: selectedVerse.value,
   }));
 
+  async function syncSelection(currentSelection, previousSelection = null) {
+    const isPassageChange =
+      !previousSelection ||
+      currentSelection.book !== previousSelection.book ||
+      currentSelection.chapter !== previousSelection.chapter;
+
+    if (isPassageChange) {
+      await bibleStore.loadBibleContent(currentSelection.book, currentSelection.chapter);
+    }
+
+    await Promise.all([
+      historyStore.loadHistoricalData(
+        currentSelection.book,
+        currentSelection.chapter,
+        currentSelection.verse
+      ),
+      teachingsStore.loadTeachingsData(
+        currentSelection.book,
+        currentSelection.chapter,
+        currentSelection.verse
+      ),
+    ]);
+  }
+
+  async function ensureInitialData() {
+    const currentSelection = selectionSnapshot.value;
+
+    if (
+      bibleStore.hasLoaded.value &&
+      historyStore.hasLoaded.value &&
+      teachingsStore.hasLoaded.value
+    ) {
+      return;
+    }
+
+    await syncSelection(currentSelection);
+  }
+
   if (!initialized) {
-    watch(
-      selectionSnapshot,
-      async (currentSelection, previousSelection) => {
-        const isPassageChange =
-          !previousSelection ||
-          currentSelection.book !== previousSelection.book ||
-          currentSelection.chapter !== previousSelection.chapter;
-
-        if (isPassageChange) {
-          await bibleStore.loadBibleContent(currentSelection.book, currentSelection.chapter);
-        }
-
-        await Promise.all([
-          historyStore.loadHistoricalData(
-            currentSelection.book,
-            currentSelection.chapter,
-            currentSelection.verse
-          ),
-          teachingsStore.loadTeachingsData(
-            currentSelection.book,
-            currentSelection.chapter,
-            currentSelection.verse
-          ),
-        ]);
-      },
-      { immediate: true }
-    );
+    watch(selectionSnapshot, async (currentSelection, previousSelection) => {
+      await syncSelection(currentSelection, previousSelection);
+    });
 
     initialized = true;
   }
@@ -58,5 +72,6 @@ export function useReaderData() {
     bibleStore,
     historyStore,
     teachingsStore,
+    ensureInitialData,
   };
 }
