@@ -100,3 +100,8 @@ export function isValidChapter(book, chapter) {
     chapterNumber <= getChapterCount(book)
   );
 }
+
+export function isValidVerseNumber(verse) {
+  const verseNumber = Number(verse);
+  return Number.isInteger(verseNumber) && verseNumber >= 1;
+}

@@ -20,11 +20,13 @@ export function createAsyncResource(fetcher, mapResult) {
   const refreshing = ref(false);
   const error = ref(null);
   const hasLoaded = ref(false);
+  const lastArgs = ref(null);
   const requestManager = createRequestManager();
 
   async function load(...args) {
     const requestId = requestManager.begin();
     const shouldRefreshInBackground = hasLoaded.value;
+    lastArgs.value = args;
 
     if (shouldRefreshInBackground) {
       refreshing.value = true;
@@ -65,12 +67,22 @@ export function createAsyncResource(fetcher, mapResult) {
     }
   }
 
+  async function retry() {
+    if (!lastArgs.value) {
+      return { stale: false };
+    }
+
+    return load(...lastArgs.value);
+  }
+
   return {
     data,
     loading,
     refreshing,
     error,
     hasLoaded,
+    lastArgs,
     load,
+    retry,
   };
 }

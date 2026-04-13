@@ -9,6 +9,10 @@ export const useTeachingsStore = defineStore('teachings', () => {
     return resource.load(book, chapter, verse);
   }
 
+  async function retry() {
+    return resource.retry();
+  }
+
   return {
     items: resource.data,
     loading: resource.loading,
@@ -16,5 +20,6 @@ export const useTeachingsStore = defineStore('teachings', () => {
     error: resource.error,
     hasLoaded: resource.hasLoaded,
     loadTeachingsData,
+    retry,
   };
 });

@@ -6,6 +6,7 @@ import {
   getChapterOptions,
   isValidBook,
   isValidChapter,
+  isValidVerseNumber,
 } from '../src/utils/constants.js';
 
 test('book metadata exposes the full canon and chapter counts', () => {
@@ -26,4 +27,12 @@ test('book and chapter validation rejects invalid selections', () => {
   assert.equal(isValidBook('Fake Book'), false);
   assert.equal(isValidChapter('John', 21), true);
   assert.equal(isValidChapter('John', 22), false);
+});
+
+test('verse validation rejects invalid verse numbers', () => {
+  assert.equal(isValidVerseNumber(1), true);
+  assert.equal(isValidVerseNumber('16'), true);
+  assert.equal(isValidVerseNumber(0), false);
+  assert.equal(isValidVerseNumber('not-a-verse'), false);
+  assert.equal(isValidVerseNumber(1.5), false);
 });

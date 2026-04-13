@@ -6,6 +6,7 @@ import {
   getChapterCount,
   isValidBook,
   isValidChapter,
+  isValidVerseNumber,
 } from '../utils/constants';
 
 export const useSelectionStore = defineStore('selection', () => {
@@ -40,7 +41,18 @@ export const useSelectionStore = defineStore('selection', () => {
   }
 
   function setVerse(verse) {
-    selectedVerse.value = verse == null ? null : Number(verse);
+    if (verse == null) {
+      selectedVerse.value = null;
+      return true;
+    }
+
+    const normalizedVerse = Number(verse);
+    if (!isValidVerseNumber(normalizedVerse)) {
+      return false;
+    }
+
+    selectedVerse.value = normalizedVerse;
+    return true;
   }
 
   function setSelection({ book, chapter, verse = null }) {
@@ -50,6 +62,10 @@ export const useSelectionStore = defineStore('selection', () => {
 
     const normalizedChapter = Number(chapter);
     if (!isValidChapter(book, normalizedChapter)) {
+      return false;
+    }
+
+    if (verse != null && !isValidVerseNumber(verse)) {
       return false;
     }
 

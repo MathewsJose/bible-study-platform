@@ -9,6 +9,10 @@ export const useHistoryStore = defineStore('history', () => {
     return resource.load(book, chapter, verse);
   }
 
+  async function retry() {
+    return resource.retry();
+  }
+
   return {
     items: resource.data,
     loading: resource.loading,
@@ -16,5 +20,6 @@ export const useHistoryStore = defineStore('history', () => {
     error: resource.error,
     hasLoaded: resource.hasLoaded,
     loadHistoricalData,
+    retry,
   };
 });

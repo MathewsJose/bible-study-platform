@@ -5,9 +5,15 @@ import {
   getChapterOptions,
   isValidBook,
   isValidChapter,
+  isValidVerseNumber,
 } from '../src/utils/constants.js';
 import { loadBookmarks, parseBookmarks, saveBookmarks } from '../src/utils/bookmarkStorage.js';
 import { createAsyncResource } from '../src/utils/createAsyncResource.js';
+import {
+  getSampleBibleContent,
+  getSampleHistoricalData,
+  getSampleTeachingsData,
+} from '../src/services/sampleData.js';
 
 const tests = [];
 
@@ -33,6 +39,14 @@ test('book and chapter validation rejects invalid selections', () => {
   assert.equal(isValidBook('Fake Book'), false);
   assert.equal(isValidChapter('John', 21), true);
   assert.equal(isValidChapter('John', 22), false);
+});
+
+test('verse validation rejects invalid verse numbers', () => {
+  assert.equal(isValidVerseNumber(1), true);
+  assert.equal(isValidVerseNumber('16'), true);
+  assert.equal(isValidVerseNumber(0), false);
+  assert.equal(isValidVerseNumber('not-a-verse'), false);
+  assert.equal(isValidVerseNumber(1.5), false);
 });
 
 test('bookmark parsing tolerates bad or unexpected storage values', () => {
@@ -90,6 +104,38 @@ test('createAsyncResource keeps the latest async result when requests overlap', 
   assert.deepEqual(resource.data.value, ['second']);
   assert.equal(resource.loading.value, false);
   assert.equal(resource.refreshing.value, false);
+});
+
+test('createAsyncResource can retry the latest request arguments', async () => {
+  const calls = [];
+  const resource = createAsyncResource(
+    async (...args) => {
+      calls.push(args);
+      return { items: args };
+    },
+    (result) => result.items
+  );
+
+  await resource.load('John', 1);
+  await resource.retry();
+
+  assert.deepEqual(calls, [
+    ['John', 1],
+    ['John', 1],
+  ]);
+});
+
+test('sample content does not contain common mojibake artifacts', () => {
+  const payload = {
+    bible: getSampleBibleContent('John', 1),
+    history: getSampleHistoricalData('John', 1, 14),
+    teachings: getSampleTeachingsData('John', 1, 14),
+  };
+  const serialized = JSON.stringify(payload);
+
+  assert.equal(serialized.includes('\u00c3'), false);
+  assert.equal(serialized.includes('\u00e2'), false);
+  assert.equal(serialized.includes('\ufffd'), false);
 });
 
 let failures = 0;
