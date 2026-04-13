@@ -32,3 +32,22 @@ test('createAsyncResource keeps the latest async result when requests overlap', 
   assert.equal(resource.loading.value, false);
   assert.equal(resource.refreshing.value, false);
 });
+
+test('createAsyncResource can retry the latest request arguments', async () => {
+  const calls = [];
+  const resource = createAsyncResource(
+    async (...args) => {
+      calls.push(args);
+      return { items: args };
+    },
+    (result) => result.items
+  );
+
+  await resource.load('John', 1);
+  await resource.retry();
+
+  assert.deepEqual(calls, [
+    ['John', 1],
+    ['John', 1],
+  ]);
+});
