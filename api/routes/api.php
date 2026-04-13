@@ -1,9 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Interface\Http\Controllers\Bible\VerseController;
 use App\Interfaces\Http\Controllers\BibleController;
+use App\Interfaces\Http\Controllers\HistoryController;
+use App\Interfaces\Http\Controllers\TeachingsController;
 
-Route::prefix('api')->group(function () {
-    Route::get('verse/{book}/{chapter}/{verse}', [BibleController::class, 'show']);
-});
+Route::get('bible', [BibleController::class, 'chapter']);
+Route::get('history', [HistoryController::class, 'show']);
+Route::get('teachings', [TeachingsController::class, 'show']);

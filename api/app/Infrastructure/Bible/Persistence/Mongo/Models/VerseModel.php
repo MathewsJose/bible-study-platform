@@ -8,5 +8,5 @@ class VerseModel extends Model
 {
     protected $connection = 'mongodb';
     protected $collection = 'verses';
-    protected $fillable = ['book', 'chapter', 'verse', 'text'];
+    protected $fillable = ['book', 'chapter', 'verse', 'text', 'language', 'version'];
 }
