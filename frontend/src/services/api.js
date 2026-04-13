@@ -1,9 +1,11 @@
-import { useRuntimeConfig } from '#imports';
 import { $fetch } from 'ofetch';
 
 export function getApiBaseUrl() {
-  const config = useRuntimeConfig();
-  return config.public.apiBaseUrl || '';
+  if (typeof window !== 'undefined') {
+    return window.__NUXT__?.config?.public?.apiBaseUrl || '';
+  }
+
+  return process.env.NUXT_PUBLIC_API_BASE_URL || process.env.VITE_API_BASE_URL || '';
 }
 
 export async function apiGet(path, params) {
