@@ -44,9 +44,3 @@ npm run frontend:dev
 npm run frontend:build
 npm run frontend:test
 ```
-
-## Notes
-
-- The old root-level frontend app files were removed in favor of `frontend/`.
-- The backend lives entirely in `api/`.
-- The temporary folders created during the failed move were cleaned up.
