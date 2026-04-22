@@ -1,0 +1,25 @@
+{
+  "name": "bible-study-platform",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "test": "node tests/run-tests.js",
+    "check": "npm run test && npm run build"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "^0.11.2",
+    "@vueuse/core": "^14.2.1",
+    "nuxt": "^4.1.2",
+    "pinia": "^3.0.4",
+    "tailwindcss": "^4.2.2",
+    "vue": "^3.5.30"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "vite": "^7.3.1"
+  }
+}
