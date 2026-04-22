@@ -45,5 +45,4 @@ api/bootstrap/cache/*.php
 !api/bootstrap/cache/.gitignore
 
 # Editor
-.vscode/*
-!.vscode/extensions.json
+.vscode/
