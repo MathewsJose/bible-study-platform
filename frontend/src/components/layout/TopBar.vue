@@ -8,9 +8,8 @@
       <label class="min-w-[220px]">
         <span class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Book</span>
         <select
-          :value="selectionStore.selectedBook"
+          v-model="selectedBookModel"
           class="soft-ring h-10 w-full rounded-xl border border-[var(--stroke)] bg-white px-3 text-sm font-medium text-slate-900"
-          @change="selectionStore.setBook($event.target.value)"
         >
           <option v-for="book in books" :key="book" :value="book">{{ book }}</option>
         </select>
@@ -19,9 +18,8 @@
       <label class="min-w-[140px]">
         <span class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Chapter</span>
         <select
-          :value="selectionStore.selectedChapter"
+          v-model="selectedChapterModel"
           class="soft-ring h-10 w-full rounded-xl border border-[var(--stroke)] bg-white px-3 text-sm font-medium text-slate-900"
-          @change="selectionStore.setChapter($event.target.value)"
         >
           <option v-for="chapter in chapterOptions" :key="chapter" :value="chapter">{{ chapter }}</option>
         </select>
@@ -31,6 +29,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useSelectionStore } from '../../stores/selectionStore';
 import { BIBLE_BOOKS } from '../../utils/constants';
@@ -38,4 +37,18 @@ import { BIBLE_BOOKS } from '../../utils/constants';
 const selectionStore = useSelectionStore();
 const { chapterOptions } = storeToRefs(selectionStore);
 const books = BIBLE_BOOKS;
+
+const selectedBookModel = computed({
+  get: () => selectionStore.selectedBook,
+  set: (value) => {
+    selectionStore.setBook(value);
+  },
+});
+
+const selectedChapterModel = computed({
+  get: () => selectionStore.selectedChapter,
+  set: (value) => {
+    selectionStore.setChapter(value);
+  },
+});
 </script>
