@@ -51,12 +51,36 @@ class BibleApiTest extends TestCase
         });
 
         $this->app->bind(HistoricalContextRepositoryInterface::class, fn () => new class implements HistoricalContextRepositoryInterface {
+            public function findChapter(
+                string $language,
+                string $version,
+                string $book,
+                int $chapter
+            ): array {
+                if ($book !== 'john' || $chapter !== 3) {
+                    return [];
+                }
+
+                return [
+                    new HistoricalContext(
+                        book: 'john',
+                        chapter: 3,
+                        verse: 16,
+                        summary: 'John 3 reflects a first-century Jewish conversation about rebirth and divine salvation.',
+                        details: 'The setting draws on Pharisaic teaching, Second Temple Jewish imagery, and Johannine theology.',
+                        references: ['John 3:1-21'],
+                        language: $language,
+                        version: $version
+                    ),
+                ];
+            }
+
             public function findByReference(
                 string $language,
                 string $version,
                 string $book,
                 int $chapter,
-                int $verse
+                ?int $verse
             ): ?HistoricalContext {
                 if ($book !== 'john' || $chapter !== 3 || $verse !== 16) {
                     return null;
@@ -76,12 +100,37 @@ class BibleApiTest extends TestCase
         });
 
         $this->app->bind(ChurchTeachingRepositoryInterface::class, fn () => new class implements ChurchTeachingRepositoryInterface {
+            public function findChapter(
+                string $language,
+                string $version,
+                string $book,
+                int $chapter
+            ): array {
+                if ($book !== 'john' || $chapter !== 3) {
+                    return [];
+                }
+
+                return [
+                    new ChurchTeaching(
+                        book: 'john',
+                        chapter: 3,
+                        verse: 16,
+                        summary: 'This verse is often connected to the Church teaching on salvation through Christ.',
+                        details: 'Catholic interpretation reads the passage within the wider economy of grace and baptismal rebirth.',
+                        tradition: 'Catholic',
+                        references: ['CCC 458', 'CCC 679'],
+                        language: $language,
+                        version: $version
+                    ),
+                ];
+            }
+
             public function findByReference(
                 string $language,
                 string $version,
                 string $book,
                 int $chapter,
-                int $verse
+                ?int $verse
             ): ?ChurchTeaching {
                 if ($book !== 'john' || $chapter !== 3 || $verse !== 16) {
                     return null;
@@ -141,16 +190,26 @@ class BibleApiTest extends TestCase
             ->assertJsonPath('data.chapter', 3)
             ->assertJsonPath('data.verse', 16)
             ->assertJsonPath('data.history.summary', 'John 3 reflects a first-century Jewish conversation about rebirth and divine salvation.')
+            ->assertJsonPath('data.items.0', 'John 3 reflects a first-century Jewish conversation about rebirth and divine salvation.')
             ->assertJsonPath('data.history.references.0', 'John 3:1-21');
     }
 
-    public function test_history_endpoint_validates_required_query_parameters(): void
+    public function test_history_endpoint_validates_required_chapter_query_parameter(): void
     {
-        $this->getJson('/history?book=john&chapter=3')
+        $this->getJson('/history?book=john')
             ->assertStatus(400)
             ->assertJsonPath('success', false)
             ->assertJsonPath('message', 'Invalid historical context request.')
-            ->assertJsonStructure(['errors' => ['verse']]);
+            ->assertJsonStructure(['errors' => ['chapter']]);
+    }
+
+    public function test_history_endpoint_returns_chapter_level_payload_without_verse(): void
+    {
+        $this->getJson('/history?book=john&chapter=3')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.verse', null)
+            ->assertJsonPath('data.items.0', 'Verse 16: John 3 reflects a first-century Jewish conversation about rebirth and divine salvation.');
     }
 
     public function test_history_endpoint_returns_safe_empty_payload_when_content_is_missing(): void
@@ -172,16 +231,26 @@ class BibleApiTest extends TestCase
             ->assertJsonPath('data.chapter', 3)
             ->assertJsonPath('data.verse', 16)
             ->assertJsonPath('data.teachings.tradition', 'Catholic')
+            ->assertJsonPath('data.items.0', 'This verse is often connected to the Church teaching on salvation through Christ.')
             ->assertJsonPath('data.teachings.references.0', 'CCC 458');
     }
 
-    public function test_teachings_endpoint_validates_required_query_parameters(): void
+    public function test_teachings_endpoint_validates_required_chapter_query_parameter(): void
     {
-        $this->getJson('/teachings?book=john&verse=16')
+        $this->getJson('/teachings?book=john')
             ->assertStatus(400)
             ->assertJsonPath('success', false)
             ->assertJsonPath('message', 'Invalid teachings request.')
             ->assertJsonStructure(['errors' => ['chapter']]);
+    }
+
+    public function test_teachings_endpoint_returns_chapter_level_payload_without_verse(): void
+    {
+        $this->getJson('/teachings?book=john&chapter=3')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.verse', null)
+            ->assertJsonPath('data.items.0', 'Verse 16: This verse is often connected to the Church teaching on salvation through Christ.');
     }
 
     public function test_teachings_endpoint_returns_safe_empty_payload_when_content_is_missing(): void

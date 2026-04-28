@@ -9,21 +9,48 @@ use MongoDB\BSON\Regex;
 
 class MongoHistoricalContextRepository implements HistoricalContextRepositoryInterface
 {
+    public function findChapter(
+        string $language,
+        string $version,
+        string $book,
+        int $chapter
+    ): array {
+        return HistoricalContextModel::where('book', new Regex('^'.preg_quote($book, '/').'$', 'i'))
+            ->where('chapter', $chapter)
+            ->where('language', $language)
+            ->where('version', $version)
+            ->orderBy('verse')
+            ->get()
+            ->map(fn (HistoricalContextModel $model): HistoricalContext => $this->mapModel($model))
+            ->all();
+    }
+
     public function findByReference(
         string $language,
         string $version,
         string $book,
         int $chapter,
-        int $verse
+        ?int $verse
     ): ?HistoricalContext {
-        $model = HistoricalContextModel::where('book', new Regex('^'.preg_quote($book, '/').'$', 'i'))
+        $query = HistoricalContextModel::where('book', new Regex('^'.preg_quote($book, '/').'$', 'i'))
             ->where('chapter', $chapter)
-            ->where('verse', $verse)
             ->where('language', $language)
-            ->where('version', $version)
+            ->where('version', $version);
+
+        if ($verse !== null) {
+            $query->where('verse', $verse);
+        }
+
+        $model = $query
+            ->orderBy('verse')
             ->first();
 
-        return $model ? new HistoricalContext(
+        return $model ? $this->mapModel($model) : null;
+    }
+
+    private function mapModel(HistoricalContextModel $model): HistoricalContext
+    {
+        return new HistoricalContext(
             book: strtolower((string) $model->book),
             chapter: (int) $model->chapter,
             verse: (int) $model->verse,
@@ -32,6 +59,6 @@ class MongoHistoricalContextRepository implements HistoricalContextRepositoryInt
             references: $model->references ?? [],
             language: (string) $model->language,
             version: (string) $model->version
-        ) : null;
+        );
     }
 }

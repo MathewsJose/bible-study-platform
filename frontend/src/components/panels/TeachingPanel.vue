@@ -31,7 +31,7 @@
         </button>
       </div>
       <EmptyState
-        v-else-if="!hasVerseSelected"
+        v-else-if="!hasVerseSelected && !teachingsStore.items.length"
         message="Select a verse to populate this teaching panel."
       />
       <EmptyState

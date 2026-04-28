@@ -18,7 +18,7 @@ class HistoryController extends Controller
         $validator = Validator::make($request->query(), [
             'book' => ['required', 'string'],
             'chapter' => ['required', 'integer', 'min:1'],
-            'verse' => ['required', 'integer', 'min:1'],
+            'verse' => ['nullable', 'integer', 'min:1'],
             'language' => ['sometimes', 'string'],
             'version' => ['sometimes', 'string'],
         ]);
@@ -32,7 +32,7 @@ class HistoryController extends Controller
             version: strtolower((string) $request->query('version', 'nrsvce')),
             book: (string) $request->query('book'),
             chapter: (int) $request->query('chapter'),
-            verse: (int) $request->query('verse')
+            verse: $request->query->has('verse') ? (int) $request->query('verse') : null
         ));
     }
 }

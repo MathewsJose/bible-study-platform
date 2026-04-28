@@ -14,6 +14,7 @@ import {
   getSampleHistoricalData,
   getSampleTeachingsData,
 } from '../src/services/sampleData.js';
+import { normalizeApiPayload } from '../src/services/apiContract.js';
 
 const tests = [];
 
@@ -136,6 +137,21 @@ test('sample content does not contain common mojibake artifacts', () => {
   assert.equal(serialized.includes('\u00c3'), false);
   assert.equal(serialized.includes('\u00e2'), false);
   assert.equal(serialized.includes('\ufffd'), false);
+});
+
+test('api payload normalization unwraps the Laravel envelope in one place', () => {
+  assert.deepEqual(normalizeApiPayload({
+    success: true,
+    data: { verses: [{ verse: 1, text: 'In the beginning' }] },
+  }), {
+    verses: [{ verse: 1, text: 'In the beginning' }],
+  });
+
+  assert.deepEqual(normalizeApiPayload({
+    items: ['Historical note'],
+  }), {
+    items: ['Historical note'],
+  });
 });
 
 let failures = 0;

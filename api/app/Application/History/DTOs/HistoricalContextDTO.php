@@ -10,7 +10,8 @@ class HistoricalContextDTO
     public function __construct(
         public readonly string $book,
         public readonly int $chapter,
-        public readonly int $verse,
-        public readonly array $history
+        public readonly ?int $verse,
+        public readonly array $history,
+        public readonly array $items = []
     ) {}
 }
