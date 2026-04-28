@@ -232,6 +232,8 @@ The current default version is `nrsvce` and the current default language is `en`
 
 ## Testing
 
+Tests are configured to prefer the committed `.env.testing` file. If `.env` is missing, the test bootstrap falls back to `.env.example` so `php artisan test` can run from a fresh clone without manual environment setup.
+
 Run the focused API tests:
 
 ```bash
@@ -244,7 +246,7 @@ Run the full test suite:
 php artisan test
 ```
 
-Known local caveat: the starter `Tests\Feature\ExampleTest` hits `/` and may fail on Windows if Laravel cannot rename a compiled Blade view under `storage/framework/views`. The API feature tests do not depend on the welcome view and pass independently.
+The full suite is designed to run from a fresh clone without creating a local `.env` first.
 
 ## Useful Commands
 

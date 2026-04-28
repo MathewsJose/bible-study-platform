@@ -10,10 +10,13 @@ class ExampleTest extends TestCase
     /**
      * A basic test example.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_application_returns_a_validation_response(): void
     {
-        $response = $this->get('/');
+        $response = $this->getJson('/bible?book=john');
 
-        $response->assertStatus(200);
+        $response
+            ->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Invalid bible chapter request.');
     }
 }
