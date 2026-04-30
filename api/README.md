@@ -1,13 +1,51 @@
 # Bible API
 
-Laravel backend for a Bible study application. The service currently exposes Bible chapter lookup, historical context lookup, and Church teaching lookup endpoints backed by MongoDB-oriented repositories.
+Laravel backend for a Bible study application. The service exposes Bible chapter lookup, historical context lookup, and Church teaching lookup endpoints backed by MongoDB-oriented repositories.
 
-The codebase uses a layered structure:
+## Architecture
 
-- `app/Domain`: entities and repository interfaces
-- `app/Application`: DTOs, use cases, and services
-- `app/Infrastructure`: MongoDB models and repository implementations
-- `app/Interfaces`: HTTP controllers and API response formatting
+The API follows a layered, Clean Architecture style with Domain-Driven Design boundaries:
+
+```text
++---------------------------+
+| Interface Layer           | HTTP controllers, routes, response envelope
++---------------------------+
+| Application Layer         | DTOs, use cases, application services
++---------------------------+
+| Domain Layer              | Entities and repository contracts
++---------------------------+
+| Infrastructure Layer      | MongoDB models and repository implementations
++---------------------------+
+```
+
+Dependency flow points inward:
+
+- Controllers validate and translate HTTP requests.
+- Application services orchestrate use cases and DTOs.
+- Domain entities and repository interfaces define the business model.
+- Infrastructure repositories implement persistence without leaking MongoDB details into controllers.
+
+Current source layout:
+
+```text
+app/
++-- Domain/
+|   +-- Bible/
+|   +-- History/
+|   +-- Teachings/
++-- Application/
+|   +-- Bible/
+|   +-- History/
+|   +-- Teachings/
++-- Infrastructure/
+|   +-- Bible/Persistence/Mongo/
+|   +-- History/Persistence/Mongo/
+|   +-- Teachings/Persistence/Mongo/
++-- Interfaces/
+    +-- Http/
+```
+
+The original project direction included Elasticsearch-backed search. The current code and Docker Compose setup do not run Elasticsearch yet, so search indexing should be treated as a future infrastructure adapter rather than an active runtime dependency.
 
 ## Stack
 
@@ -229,6 +267,14 @@ The application services already accept `language` and `version` arguments inter
 - `getTeachings(language, version, book, chapter, verse)`
 
 The current default version is `nrsvce` and the current default language is `en`. The repository/model boundaries are intended to support additional Bible versions, languages, and content sources without rewriting the controllers.
+
+Planned extension points include:
+
+- Full-text search through a dedicated search adapter
+- Additional Bible translations loaded from licensed sources
+- User-specific study notes and saved passages
+- Cross-references, maps, timelines, and commentary modules
+- Caching for high-traffic lookup endpoints
 
 ## Testing
 
