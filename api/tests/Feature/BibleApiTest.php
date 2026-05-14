@@ -8,6 +8,7 @@ use App\Domain\History\Entities\HistoricalContext;
 use App\Domain\History\Repositories\HistoricalContextRepositoryInterface;
 use App\Domain\Teachings\Entities\ChurchTeaching;
 use App\Domain\Teachings\Repositories\ChurchTeachingRepositoryInterface;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class BibleApiTest extends TestCase
@@ -15,6 +16,8 @@ class BibleApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Cache::flush();
 
         $this->app->bind(VerseRepositoryInterface::class, fn () => new class implements VerseRepositoryInterface {
             /**
@@ -270,5 +273,36 @@ class BibleApiTest extends TestCase
             ->assertJsonPath('data.teachings.details', null)
             ->assertJsonPath('data.teachings.tradition', 'Catholic')
             ->assertJsonPath('data.teachings.references', []);
+    }
+
+    public function test_study_endpoint_returns_combined_reader_payload(): void
+    {
+        $this->getJson('/study?book=john&chapter=3&verse=16')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.bible.book', 'john')
+            ->assertJsonPath('data.bible.chapter', 3)
+            ->assertJsonPath('data.bible.verses.2.verse', 16)
+            ->assertJsonPath('data.history.verse', 16)
+            ->assertJsonPath('data.history.history.references.0', 'John 3:1-21')
+            ->assertJsonPath('data.teachings.verse', 16)
+            ->assertJsonPath('data.teachings.teachings.references.0', 'CCC 458');
+    }
+
+    public function test_study_endpoint_validates_required_query_parameters(): void
+    {
+        $this->getJson('/study?book=john')
+            ->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Invalid study request.')
+            ->assertJsonStructure(['errors' => ['chapter']]);
+    }
+
+    public function test_study_endpoint_returns_not_found_for_missing_bible_chapter(): void
+    {
+        $this->getJson('/study?book=acts&chapter=99&verse=1')
+            ->assertStatus(404)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Bible chapter not found.');
     }
 }

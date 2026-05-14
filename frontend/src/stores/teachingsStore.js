@@ -13,6 +13,10 @@ export const useTeachingsStore = defineStore('teachings', () => {
     return resource.retry();
   }
 
+  function hydrateTeachingsData(data, book, chapter, verse) {
+    return resource.hydrate(data, book, chapter, verse);
+  }
+
   return {
     items: resource.data,
     loading: resource.loading,
@@ -20,6 +24,7 @@ export const useTeachingsStore = defineStore('teachings', () => {
     error: resource.error,
     hasLoaded: resource.hasLoaded,
     loadTeachingsData,
+    hydrateTeachingsData,
     retry,
   };
 });

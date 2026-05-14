@@ -1,6 +1,6 @@
 # Bible API
 
-Laravel backend for a Bible study application. The service exposes Bible chapter lookup, historical context lookup, and Church teaching lookup endpoints backed by MongoDB-oriented repositories.
+Laravel backend for a Bible study application. The service exposes Bible chapter lookup, historical context lookup, Church teaching lookup, and combined study reader endpoints backed by MongoDB-oriented repositories.
 
 ## Architecture
 
@@ -228,6 +228,69 @@ Example empty-content response:
 }
 ```
 
+### Get Combined Study Payload
+
+```http
+GET /study?book={book}&chapter={chapter}&verse={verse}
+```
+
+Required query parameters:
+
+- `book`: string
+- `chapter`: integer, minimum `1`
+
+Optional query parameters:
+
+- `verse`: integer, minimum `1`
+- `language`: defaults to `en`
+- `version`: defaults to `nrsvce`
+
+Example:
+
+```bash
+curl "http://localhost/study?book=john&chapter=3&verse=16&version=drb"
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "bible": {
+      "book": "john",
+      "chapter": 3,
+      "version": "drb",
+      "language": "en",
+      "verses": []
+    },
+    "history": {
+      "book": "john",
+      "chapter": 3,
+      "verse": 16,
+      "history": {
+        "summary": null,
+        "details": null,
+        "references": []
+      },
+      "items": []
+    },
+    "teachings": {
+      "book": "john",
+      "chapter": 3,
+      "verse": 16,
+      "teachings": {
+        "summary": null,
+        "details": null,
+        "tradition": "Catholic",
+        "references": []
+      },
+      "items": []
+    }
+  }
+}
+```
+
 ### Legacy Verse Lookup
 
 ```http
@@ -265,6 +328,7 @@ The application services already accept `language` and `version` arguments inter
 - `getBibleChapter(language, version, book, chapter)`
 - `getHistoricalContext(language, version, book, chapter, verse)`
 - `getTeachings(language, version, book, chapter, verse)`
+- `getStudyPayload(language, version, book, chapter, verse)`
 
 The current default version is `nrsvce` and the current default language is `en`. The repository/model boundaries are intended to support additional Bible versions, languages, and content sources without rewriting the controllers.
 
@@ -300,6 +364,7 @@ The full suite is designed to run from a fresh clone without creating a local `.
 php artisan route:list
 php artisan route:list --path=bible
 php artisan route:list --path=history
+php artisan route:list --path=study
 php artisan route:list --path=teachings
 ```
 

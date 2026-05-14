@@ -51,3 +51,19 @@ test('createAsyncResource can retry the latest request arguments', async () => {
     ['John', 1],
   ]);
 });
+
+test('createAsyncResource can hydrate data from an external response', () => {
+  const resource = createAsyncResource(
+    async () => ({ items: [] }),
+    (result) => result.items
+  );
+
+  resource.hydrate({ items: ['combined'] }, 'John', 3, 16);
+
+  assert.deepEqual(resource.data.value, ['combined']);
+  assert.deepEqual(resource.lastArgs.value, ['John', 3, 16]);
+  assert.equal(resource.hasLoaded.value, true);
+  assert.equal(resource.error.value, null);
+  assert.equal(resource.loading.value, false);
+  assert.equal(resource.refreshing.value, false);
+});

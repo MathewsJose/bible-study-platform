@@ -75,6 +75,17 @@ export function createAsyncResource(fetcher, mapResult) {
     return load(...lastArgs.value);
   }
 
+  function hydrate(response, ...args) {
+    lastArgs.value = args;
+    data.value = mapResult(response);
+    hasLoaded.value = true;
+    error.value = null;
+    loading.value = false;
+    refreshing.value = false;
+
+    return { stale: false, data: data.value };
+  }
+
   return {
     data,
     loading,
@@ -84,5 +95,6 @@ export function createAsyncResource(fetcher, mapResult) {
     lastArgs,
     load,
     retry,
+    hydrate,
   };
 }

@@ -4,6 +4,7 @@ import { useBibleStore } from '../stores/bibleStore';
 import { useHistoryStore } from '../stores/historyStore';
 import { useTeachingsStore } from '../stores/teachingsStore';
 import { useSelectionStore } from '../stores/selectionStore';
+import { fetchStudyPayload } from '../services/studyService';
 
 let initialized = false;
 
@@ -22,6 +23,46 @@ export function useReaderData() {
   }));
 
   async function syncSelection(currentSelection, previousSelection = null) {
+    if (await syncStudySelection(currentSelection)) {
+      return;
+    }
+
+    await syncSelectionFromSeparateEndpoints(currentSelection, previousSelection);
+  }
+
+  async function syncStudySelection(currentSelection) {
+    try {
+      const payload = await fetchStudyPayload(
+        currentSelection.book,
+        currentSelection.chapter,
+        currentSelection.verse
+      );
+
+      bibleStore.hydrateBibleContent(
+        payload.bible || {},
+        currentSelection.book,
+        currentSelection.chapter
+      );
+      historyStore.hydrateHistoricalData(
+        payload.history || {},
+        currentSelection.book,
+        currentSelection.chapter,
+        currentSelection.verse
+      );
+      teachingsStore.hydrateTeachingsData(
+        payload.teachings || {},
+        currentSelection.book,
+        currentSelection.chapter,
+        currentSelection.verse
+      );
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function syncSelectionFromSeparateEndpoints(currentSelection, previousSelection = null) {
     const isPassageChange =
       !previousSelection ||
       currentSelection.book !== previousSelection.book ||

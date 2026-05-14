@@ -13,6 +13,10 @@ export const useHistoryStore = defineStore('history', () => {
     return resource.retry();
   }
 
+  function hydrateHistoricalData(data, book, chapter, verse) {
+    return resource.hydrate(data, book, chapter, verse);
+  }
+
   return {
     items: resource.data,
     loading: resource.loading,
@@ -20,6 +24,7 @@ export const useHistoryStore = defineStore('history', () => {
     error: resource.error,
     hasLoaded: resource.hasLoaded,
     loadHistoricalData,
+    hydrateHistoricalData,
     retry,
   };
 });

@@ -24,6 +24,10 @@ export const useBibleStore = defineStore('bible', () => {
     return resource.retry();
   }
 
+  function hydrateBibleContent(data, book, chapter) {
+    return resource.hydrate(data, book, chapter);
+  }
+
   return {
     verses: resource.data,
     loading: resource.loading,
@@ -34,6 +38,7 @@ export const useBibleStore = defineStore('bible', () => {
     sampleMode,
     copyrightNotice,
     loadBibleContent,
+    hydrateBibleContent,
     retry,
   };
 });
