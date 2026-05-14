@@ -2,7 +2,7 @@
   <button
     type="button"
     class="soft-ring block w-full rounded-xl px-2 py-1.5 text-left transition"
-    :class="selected ? 'bg-blue-50' : 'hover:bg-slate-50'"
+    :class="selected ? 'verse-focus bg-blue-50' : 'hover:bg-slate-50'"
     @click="$emit('select', verse.verse)"
   >
     <span class="scripture-font text-[1.08rem] leading-[2.05] text-slate-800">

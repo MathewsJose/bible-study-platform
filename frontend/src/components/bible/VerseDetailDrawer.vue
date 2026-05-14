@@ -60,83 +60,87 @@
         </div>
 
         <div class="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-          <section class="panel-surface-strong p-6">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Selected Verse</p>
-            <p class="scripture-font mt-4 text-2xl leading-[1.8] text-slate-900 dark:text-slate-100">
-              {{ uiStore.activeVerse.text }}
-            </p>
-          </section>
-
-          <section v-if="activeTab === 'Translations'" class="grid gap-4">
-            <article
-              v-for="translation in translationCards"
-              :key="translation.label"
-              class="panel-surface p-5"
-            >
-              <div class="flex items-center justify-between gap-4">
-                <div>
-                  <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ translation.label }}</p>
-                  <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ translation.caption }}</p>
-                </div>
-                <span class="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-                  {{ translation.badge }}
-                </span>
-              </div>
-              <p class="scripture-font mt-4 text-lg leading-8 text-slate-800 dark:text-slate-100">
-                {{ translation.text }}
+          <Transition name="content-swap" mode="out-in">
+            <section :key="referenceLabel" class="panel-surface-strong p-6">
+              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Selected Verse</p>
+              <p class="scripture-font mt-4 text-2xl leading-[1.8] text-slate-900 dark:text-slate-100">
+                {{ uiStore.activeVerse.text }}
               </p>
-            </article>
-          </section>
+            </section>
+          </Transition>
 
-          <section v-else-if="activeTab === 'Commentary'" class="grid gap-4 md:grid-cols-2">
-            <article class="panel-surface p-5">
-              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Church Commentary</p>
-              <ul class="mt-4 space-y-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                <li v-for="(item, index) in commentaryItems" :key="index">{{ item }}</li>
-              </ul>
-            </article>
-            <article class="panel-surface p-5">
-              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Historical Insight</p>
-              <ul class="mt-4 space-y-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                <li v-for="(item, index) in historicalItems" :key="index">{{ item }}</li>
-              </ul>
-            </article>
-          </section>
-
-          <section v-else class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <article class="panel-surface p-5">
-              <div class="flex items-center justify-between gap-4">
-                <div>
-                  <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Private Notes</p>
-                  <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    Capture observations, questions, and prayers for this verse.
-                  </p>
+          <Transition name="content-swap" mode="out-in">
+            <section v-if="activeTab === 'Translations'" :key="drawerContentKey" class="grid gap-4">
+              <article
+                v-for="translation in translationCards"
+                :key="translation.label"
+                class="panel-surface p-5"
+              >
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ translation.label }}</p>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ translation.caption }}</p>
+                  </div>
+                  <span class="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+                    {{ translation.badge }}
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  class="soft-ring rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-slate-950"
-                  @click="saveNote"
-                >
-                  Save Note
-                </button>
-              </div>
+                <p class="scripture-font mt-4 text-lg leading-8 text-slate-800 dark:text-slate-100">
+                  {{ translation.text }}
+                </p>
+              </article>
+            </section>
 
-              <textarea
-                v-model="noteDraft"
-                rows="8"
-                class="soft-ring mt-4 w-full rounded-2xl border border-[var(--stroke)] bg-white/85 p-4 text-sm leading-7 text-slate-800 placeholder:text-slate-400 dark:bg-slate-950/80 dark:text-slate-100"
-                placeholder="Write your reflection, interpretation, or prayer..."
-              />
-            </article>
+            <section v-else-if="activeTab === 'Commentary'" :key="drawerContentKey" class="grid gap-4 md:grid-cols-2">
+              <article class="panel-surface p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Church Commentary</p>
+                <ul class="mt-4 space-y-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                  <li v-for="(item, index) in commentaryItems" :key="index">{{ item }}</li>
+                </ul>
+              </article>
+              <article class="panel-surface p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Historical Insight</p>
+                <ul class="mt-4 space-y-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                  <li v-for="(item, index) in historicalItems" :key="index">{{ item }}</li>
+                </ul>
+              </article>
+            </section>
 
-            <article class="panel-surface p-5">
-              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Study Actions</p>
-              <div class="mt-4 space-y-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                <p>Use bookmarks to save the passage, highlights to mark emphasis, and notes to build your study trail.</p>
-                <p>These tools stay local to your browser for a fast, private workflow.</p>
-              </div>
-            </article>
-          </section>
+            <section v-else :key="drawerContentKey" class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+              <article class="panel-surface p-5">
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Private Notes</p>
+                    <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                      Capture observations, questions, and prayers for this verse.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="soft-ring rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-slate-950"
+                    @click="saveNote"
+                  >
+                    Save Note
+                  </button>
+                </div>
+
+                <textarea
+                  v-model="noteDraft"
+                  rows="8"
+                  class="soft-ring mt-4 w-full rounded-2xl border border-[var(--stroke)] bg-white/85 p-4 text-sm leading-7 text-slate-800 placeholder:text-slate-400 dark:bg-slate-950/80 dark:text-slate-100"
+                  placeholder="Write your reflection, interpretation, or prayer..."
+                />
+              </article>
+
+              <article class="panel-surface p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Study Actions</p>
+                <div class="mt-4 space-y-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                  <p>Use bookmarks to save the passage, highlights to mark emphasis, and notes to build your study trail.</p>
+                  <p>These tools stay local to your browser for a fast, private workflow.</p>
+                </div>
+              </article>
+            </section>
+          </Transition>
         </div>
       </aside>
     </div>
@@ -173,6 +177,7 @@ const referenceLabel = computed(() =>
     ? `${activeVerse.value.book} ${activeVerse.value.chapter}:${activeVerse.value.verse}`
     : ''
 );
+const drawerContentKey = computed(() => `${referenceLabel.value}:${activeTab.value}`);
 
 const translationCards = computed(() => {
   const verseText = activeVerse.value?.text ?? '';

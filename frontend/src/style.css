@@ -78,4 +78,39 @@
   .scripture-font {
     font-family: 'Fraunces', Georgia, serif;
   }
+
+  .content-swap-enter-active,
+  .content-swap-leave-active {
+    transition: opacity 260ms ease;
+  }
+
+  .content-swap-enter-from,
+  .content-swap-leave-to {
+    opacity: 0;
+  }
+
+  .verse-list-enter-active {
+    transition: opacity 260ms ease;
+  }
+
+  .verse-list-enter-from {
+    opacity: 0;
+  }
+
+  .verse-list-move {
+    transition: opacity 260ms ease;
+  }
+
+  .verse-focus {
+    transition: background-color 260ms ease, color 260ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .content-swap-enter-active,
+    .content-swap-leave-active,
+    .verse-list-enter-active,
+    .verse-list-move {
+      transition: none;
+    }
+  }
 }
