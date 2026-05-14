@@ -3,7 +3,9 @@
 namespace App\Application\History\Services;
 
 use App\Application\History\DTOs\HistoricalContextDTO;
+use App\Domain\History\Entities\HistoricalContext;
 use App\Domain\History\Repositories\HistoricalContextRepositoryInterface;
+use Illuminate\Support\Facades\Cache;
 
 class HistoryService
 {
@@ -17,29 +19,46 @@ class HistoryService
         ?int $verse = null
     ): HistoricalContextDTO {
         $normalizedBook = strtolower(trim($book));
-        $context = $this->repository->findByReference($language, $version, $normalizedBook, $chapter, $verse);
-        $chapterContexts = $verse === null
-            ? $this->repository->findChapter($language, $version, $normalizedBook, $chapter)
-            : [];
-        $items = $verse === null
-            ? $this->buildChapterItems($chapterContexts)
-            : $this->buildVerseItems($context);
+        $payload = Cache::remember(
+            $this->cacheKey($language, $version, $normalizedBook, $chapter, $verse),
+            now()->addHours(12),
+            fn (): array => $this->buildPayload($language, $version, $normalizedBook, $chapter, $verse)
+        );
 
         return new HistoricalContextDTO(
             book: $normalizedBook,
             chapter: $chapter,
             verse: $verse,
-            history: [
-                'summary' => $context?->summary,
-                'details' => $context?->details,
-                'references' => $context?->references ?? [],
-            ],
-            items: $items
+            history: $payload['history'],
+            items: $payload['items']
         );
     }
 
     /**
-     * @param array<int, \App\Domain\History\Entities\HistoricalContext> $contexts
+     * @return array{history: array{summary: mixed, details: mixed, references: array}, items: array<int, string>}
+     */
+    private function buildPayload(string $language, string $version, string $book, int $chapter, ?int $verse): array
+    {
+        if ($verse === null) {
+            $chapterContexts = $this->repository->findChapter($language, $version, $book, $chapter);
+            $context = $chapterContexts[0] ?? null;
+
+            return [
+                'history' => $this->buildHistoryPayload($context),
+                'items' => $this->buildChapterItems($chapterContexts),
+            ];
+        }
+
+        $context = $this->repository->findByReference($language, $version, $book, $chapter, $verse);
+
+        return [
+            'history' => $this->buildHistoryPayload($context),
+            'items' => $this->buildVerseItems($context),
+        ];
+    }
+
+    /**
+     * @param array<int, HistoricalContext> $contexts
      * @return array<int, string>
      */
     private function buildChapterItems(array $contexts): array
@@ -66,7 +85,7 @@ class HistoryService
     /**
      * @return array<int, string>
      */
-    private function buildVerseItems(?\App\Domain\History\Entities\HistoricalContext $context): array
+    private function buildVerseItems(?HistoricalContext $context): array
     {
         if ($context === null) {
             return [];
@@ -80,5 +99,24 @@ class HistoryService
                 $context->references
             ),
         ]));
+    }
+
+    /**
+     * @return array{summary: mixed, details: mixed, references: array}
+     */
+    private function buildHistoryPayload(?HistoricalContext $context): array
+    {
+        return [
+            'summary' => $context?->summary,
+            'details' => $context?->details,
+            'references' => $context?->references ?? [],
+        ];
+    }
+
+    private function cacheKey(string $language, string $version, string $book, int $chapter, ?int $verse): string
+    {
+        $reference = $verse === null ? 'chapter' : "verse:$verse";
+
+        return "history:$language:$version:$book:$chapter:$reference";
     }
 }

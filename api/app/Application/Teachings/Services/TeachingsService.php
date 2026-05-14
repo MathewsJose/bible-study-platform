@@ -3,7 +3,9 @@
 namespace App\Application\Teachings\Services;
 
 use App\Application\Teachings\DTOs\ChurchTeachingDTO;
+use App\Domain\Teachings\Entities\ChurchTeaching;
 use App\Domain\Teachings\Repositories\ChurchTeachingRepositoryInterface;
+use Illuminate\Support\Facades\Cache;
 
 class TeachingsService
 {
@@ -17,30 +19,46 @@ class TeachingsService
         ?int $verse = null
     ): ChurchTeachingDTO {
         $normalizedBook = strtolower(trim($book));
-        $teaching = $this->repository->findByReference($language, $version, $normalizedBook, $chapter, $verse);
-        $chapterTeachings = $verse === null
-            ? $this->repository->findChapter($language, $version, $normalizedBook, $chapter)
-            : [];
-        $items = $verse === null
-            ? $this->buildChapterItems($chapterTeachings)
-            : $this->buildVerseItems($teaching);
+        $payload = Cache::remember(
+            $this->cacheKey($language, $version, $normalizedBook, $chapter, $verse),
+            now()->addHours(12),
+            fn (): array => $this->buildPayload($language, $version, $normalizedBook, $chapter, $verse)
+        );
 
         return new ChurchTeachingDTO(
             book: $normalizedBook,
             chapter: $chapter,
             verse: $verse,
-            teachings: [
-                'summary' => $teaching?->summary,
-                'details' => $teaching?->details,
-                'tradition' => $teaching?->tradition ?? 'Catholic',
-                'references' => $teaching?->references ?? [],
-            ],
-            items: $items
+            teachings: $payload['teachings'],
+            items: $payload['items']
         );
     }
 
     /**
-     * @param array<int, \App\Domain\Teachings\Entities\ChurchTeaching> $teachings
+     * @return array{teachings: array{summary: mixed, details: mixed, tradition: string, references: array}, items: array<int, string>}
+     */
+    private function buildPayload(string $language, string $version, string $book, int $chapter, ?int $verse): array
+    {
+        if ($verse === null) {
+            $chapterTeachings = $this->repository->findChapter($language, $version, $book, $chapter);
+            $teaching = $chapterTeachings[0] ?? null;
+
+            return [
+                'teachings' => $this->buildTeachingsPayload($teaching),
+                'items' => $this->buildChapterItems($chapterTeachings),
+            ];
+        }
+
+        $teaching = $this->repository->findByReference($language, $version, $book, $chapter, $verse);
+
+        return [
+            'teachings' => $this->buildTeachingsPayload($teaching),
+            'items' => $this->buildVerseItems($teaching),
+        ];
+    }
+
+    /**
+     * @param array<int, ChurchTeaching> $teachings
      * @return array<int, string>
      */
     private function buildChapterItems(array $teachings): array
@@ -67,7 +85,7 @@ class TeachingsService
     /**
      * @return array<int, string>
      */
-    private function buildVerseItems(?\App\Domain\Teachings\Entities\ChurchTeaching $teaching): array
+    private function buildVerseItems(?ChurchTeaching $teaching): array
     {
         if ($teaching === null) {
             return [];
@@ -81,5 +99,25 @@ class TeachingsService
                 $teaching->references
             ),
         ]));
+    }
+
+    /**
+     * @return array{summary: mixed, details: mixed, tradition: string, references: array}
+     */
+    private function buildTeachingsPayload(?ChurchTeaching $teaching): array
+    {
+        return [
+            'summary' => $teaching?->summary,
+            'details' => $teaching?->details,
+            'tradition' => $teaching?->tradition ?? 'Catholic',
+            'references' => $teaching?->references ?? [],
+        ];
+    }
+
+    private function cacheKey(string $language, string $version, string $book, int $chapter, ?int $verse): string
+    {
+        $reference = $verse === null ? 'chapter' : "verse:$verse";
+
+        return "teachings:$language:$version:$book:$chapter:$reference";
     }
 }

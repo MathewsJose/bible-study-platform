@@ -82,6 +82,10 @@ class BibleApiTest extends TestCase
                 int $chapter,
                 ?int $verse
             ): ?HistoricalContext {
+                if ($verse === null) {
+                    throw new \LogicException('Chapter-level history requests should use findChapter only.');
+                }
+
                 if ($book !== 'john' || $chapter !== 3 || $verse !== 16) {
                     return null;
                 }
@@ -132,6 +136,10 @@ class BibleApiTest extends TestCase
                 int $chapter,
                 ?int $verse
             ): ?ChurchTeaching {
+                if ($verse === null) {
+                    throw new \LogicException('Chapter-level teaching requests should use findChapter only.');
+                }
+
                 if ($book !== 'john' || $chapter !== 3 || $verse !== 16) {
                     return null;
                 }
