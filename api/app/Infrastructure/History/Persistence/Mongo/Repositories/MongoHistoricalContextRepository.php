@@ -8,6 +8,17 @@ use App\Infrastructure\History\Persistence\Mongo\Models\HistoricalContextModel;
 
 class MongoHistoricalContextRepository implements HistoricalContextRepositoryInterface
 {
+    private const CONTENT_FIELDS = [
+        'book',
+        'chapter',
+        'verse',
+        'summary',
+        'details',
+        'references',
+        'language',
+        'version',
+    ];
+
     public function findChapter(
         string $language,
         string $version,
@@ -19,6 +30,7 @@ class MongoHistoricalContextRepository implements HistoricalContextRepositoryInt
             ->where('language', $language)
             ->where('version', $version)
             ->orderBy('verse')
+            ->select(self::CONTENT_FIELDS)
             ->get()
             ->map(fn (HistoricalContextModel $model): HistoricalContext => $this->mapModel($model))
             ->all();
@@ -42,6 +54,7 @@ class MongoHistoricalContextRepository implements HistoricalContextRepositoryInt
 
         $model = $query
             ->orderBy('verse')
+            ->select(self::CONTENT_FIELDS)
             ->first();
 
         return $model ? $this->mapModel($model) : null;

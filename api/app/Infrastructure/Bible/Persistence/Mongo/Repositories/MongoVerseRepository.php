@@ -8,6 +8,8 @@ use App\Infrastructure\Bible\Persistence\Mongo\Models\VerseModel;
 
 class MongoVerseRepository implements VerseRepositoryInterface
 {
+    private const REFERENCE_FIELDS = ['_id', 'book', 'chapter', 'verse', 'text'];
+
     /**
      * @return array<int, Verse>
      */
@@ -25,6 +27,7 @@ class MongoVerseRepository implements VerseRepositoryInterface
         }
 
         return $query->orderBy('verse')
+            ->select(self::REFERENCE_FIELDS)
             ->get()
             ->map(fn (VerseModel $model): Verse => $this->toEntity($model))
             ->all();
@@ -44,7 +47,9 @@ class MongoVerseRepository implements VerseRepositoryInterface
             $query->where('version', $version);
         }
 
-        $model = $query->first();
+        $model = $query
+            ->select(self::REFERENCE_FIELDS)
+            ->first();
 
         return $model ? $this->toEntity($model) : null;
     }

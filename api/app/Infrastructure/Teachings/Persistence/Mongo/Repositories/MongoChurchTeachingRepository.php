@@ -8,6 +8,18 @@ use App\Infrastructure\Teachings\Persistence\Mongo\Models\ChurchTeachingModel;
 
 class MongoChurchTeachingRepository implements ChurchTeachingRepositoryInterface
 {
+    private const CONTENT_FIELDS = [
+        'book',
+        'chapter',
+        'verse',
+        'summary',
+        'details',
+        'tradition',
+        'references',
+        'language',
+        'version',
+    ];
+
     public function findChapter(
         string $language,
         string $version,
@@ -19,6 +31,7 @@ class MongoChurchTeachingRepository implements ChurchTeachingRepositoryInterface
             ->where('language', $language)
             ->where('version', $version)
             ->orderBy('verse')
+            ->select(self::CONTENT_FIELDS)
             ->get()
             ->map(fn (ChurchTeachingModel $model): ChurchTeaching => $this->mapModel($model))
             ->all();
@@ -42,6 +55,7 @@ class MongoChurchTeachingRepository implements ChurchTeachingRepositoryInterface
 
         $model = $query
             ->orderBy('verse')
+            ->select(self::CONTENT_FIELDS)
             ->first();
 
         return $model ? $this->mapModel($model) : null;
