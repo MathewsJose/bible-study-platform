@@ -5,7 +5,6 @@ namespace App\Infrastructure\Teachings\Persistence\Mongo\Repositories;
 use App\Domain\Teachings\Entities\ChurchTeaching;
 use App\Domain\Teachings\Repositories\ChurchTeachingRepositoryInterface;
 use App\Infrastructure\Teachings\Persistence\Mongo\Models\ChurchTeachingModel;
-use MongoDB\BSON\Regex;
 
 class MongoChurchTeachingRepository implements ChurchTeachingRepositoryInterface
 {
@@ -15,7 +14,7 @@ class MongoChurchTeachingRepository implements ChurchTeachingRepositoryInterface
         string $book,
         int $chapter
     ): array {
-        return ChurchTeachingModel::where('book', new Regex('^'.preg_quote($book, '/').'$', 'i'))
+        return ChurchTeachingModel::where('book', $this->normalizeBook($book))
             ->where('chapter', $chapter)
             ->where('language', $language)
             ->where('version', $version)
@@ -32,7 +31,7 @@ class MongoChurchTeachingRepository implements ChurchTeachingRepositoryInterface
         int $chapter,
         ?int $verse
     ): ?ChurchTeaching {
-        $query = ChurchTeachingModel::where('book', new Regex('^'.preg_quote($book, '/').'$', 'i'))
+        $query = ChurchTeachingModel::where('book', $this->normalizeBook($book))
             ->where('chapter', $chapter)
             ->where('language', $language)
             ->where('version', $version);
@@ -46,6 +45,11 @@ class MongoChurchTeachingRepository implements ChurchTeachingRepositoryInterface
             ->first();
 
         return $model ? $this->mapModel($model) : null;
+    }
+
+    private function normalizeBook(string $book): string
+    {
+        return strtolower(trim($book));
     }
 
     private function mapModel(ChurchTeachingModel $model): ChurchTeaching

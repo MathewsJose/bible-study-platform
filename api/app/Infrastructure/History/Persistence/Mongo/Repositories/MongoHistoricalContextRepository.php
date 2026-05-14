@@ -5,7 +5,6 @@ namespace App\Infrastructure\History\Persistence\Mongo\Repositories;
 use App\Domain\History\Entities\HistoricalContext;
 use App\Domain\History\Repositories\HistoricalContextRepositoryInterface;
 use App\Infrastructure\History\Persistence\Mongo\Models\HistoricalContextModel;
-use MongoDB\BSON\Regex;
 
 class MongoHistoricalContextRepository implements HistoricalContextRepositoryInterface
 {
@@ -15,7 +14,7 @@ class MongoHistoricalContextRepository implements HistoricalContextRepositoryInt
         string $book,
         int $chapter
     ): array {
-        return HistoricalContextModel::where('book', new Regex('^'.preg_quote($book, '/').'$', 'i'))
+        return HistoricalContextModel::where('book', $this->normalizeBook($book))
             ->where('chapter', $chapter)
             ->where('language', $language)
             ->where('version', $version)
@@ -32,7 +31,7 @@ class MongoHistoricalContextRepository implements HistoricalContextRepositoryInt
         int $chapter,
         ?int $verse
     ): ?HistoricalContext {
-        $query = HistoricalContextModel::where('book', new Regex('^'.preg_quote($book, '/').'$', 'i'))
+        $query = HistoricalContextModel::where('book', $this->normalizeBook($book))
             ->where('chapter', $chapter)
             ->where('language', $language)
             ->where('version', $version);
@@ -46,6 +45,11 @@ class MongoHistoricalContextRepository implements HistoricalContextRepositoryInt
             ->first();
 
         return $model ? $this->mapModel($model) : null;
+    }
+
+    private function normalizeBook(string $book): string
+    {
+        return strtolower(trim($book));
     }
 
     private function mapModel(HistoricalContextModel $model): HistoricalContext
