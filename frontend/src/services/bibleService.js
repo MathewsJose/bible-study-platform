@@ -1,18 +1,22 @@
 import { apiGet, getApiBaseUrl } from './api';
 import { getSampleBibleContent } from './sampleData';
 
-export async function fetchBibleContent(book, chapter) {
+export async function fetchBibleContent(book, chapter, language, version) {
   if (!getApiBaseUrl()) {
     return getSampleBibleContent(book, chapter);
   }
 
   try {
-    return await apiGet('/bible', { book, chapter });
+    return await apiGet('/bible', { book, chapter, language, version });
   } catch (error) {
-    if (book === 'John' && Number(chapter) === 1) {
+    if (canUseSampleFallback(book, chapter, version)) {
       return getSampleBibleContent(book, chapter);
     }
 
     throw error;
   }
+}
+
+function canUseSampleFallback(book, chapter, version) {
+  return book === 'John' && [1, 3].includes(Number(chapter)) && (!version || version === 'cpdv');
 }

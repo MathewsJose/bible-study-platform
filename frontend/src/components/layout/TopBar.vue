@@ -4,7 +4,7 @@
       Holy Bible Study Platform
     </h1>
 
-    <div class="grid gap-2 sm:grid-cols-2">
+    <div class="grid gap-2 sm:grid-cols-3">
       <label class="min-w-[220px]">
         <span class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Book</span>
         <select
@@ -24,6 +24,18 @@
           <option v-for="chapter in chapterOptions" :key="chapter" :value="chapter">{{ chapter }}</option>
         </select>
       </label>
+
+      <label class="min-w-[170px]">
+        <span class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Version</span>
+        <select
+          v-model="selectedVersionModel"
+          class="soft-ring h-10 w-full rounded-xl border border-[var(--stroke)] bg-white px-3 text-sm font-medium text-slate-900"
+        >
+          <option v-for="version in versionOptions" :key="version.value" :value="version.value">
+            {{ version.label }}
+          </option>
+        </select>
+      </label>
     </div>
   </header>
 </template>
@@ -32,11 +44,12 @@
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useSelectionStore } from '../../stores/selectionStore';
-import { BIBLE_BOOKS } from '../../utils/constants';
+import { BIBLE_BOOKS, BIBLE_VERSION_OPTIONS } from '../../utils/constants';
 
 const selectionStore = useSelectionStore();
 const { chapterOptions } = storeToRefs(selectionStore);
 const books = BIBLE_BOOKS;
+const versionOptions = BIBLE_VERSION_OPTIONS;
 
 const selectedBookModel = computed({
   get: () => selectionStore.selectedBook,
@@ -49,6 +62,13 @@ const selectedChapterModel = computed({
   get: () => selectionStore.selectedChapter,
   set: (value) => {
     selectionStore.setChapter(value);
+  },
+});
+
+const selectedVersionModel = computed({
+  get: () => selectionStore.selectedVersion,
+  set: (value) => {
+    selectionStore.setVersion(value);
   },
 });
 </script>

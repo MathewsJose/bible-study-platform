@@ -84,7 +84,7 @@ http://localhost
 
 For local CLI usage outside Docker, PHP 8.5 and the MongoDB extension are required.
 
-The bundled seed data includes a small public-domain Douay-Rheims sample under `version=drb`. It is intended for endpoint verification only. NRSV-CE text is not bundled in this repository and should be imported only from a licensed source.
+The bundled seed data includes a small public-domain Douay-Rheims sample under `version=drb`. The preferred Catholic Bible import target is the Catholic Public Domain Version under `version=cpdv`, which can be loaded with `php artisan bible:import-cpdv --fresh`.
 
 ## API Contract
 
@@ -127,12 +127,12 @@ Required query parameters:
 Optional internal defaults:
 
 - `language`: defaults to `en`
-- `version`: defaults to `nrsvce`
+- `version`: defaults to `cpdv`
 
 Example:
 
 ```bash
-curl "http://localhost/bible?book=john&chapter=3&version=drb"
+curl "http://localhost/bible?book=john&chapter=3&version=cpdv"
 ```
 
 Example response:
@@ -143,7 +143,7 @@ Example response:
   "data": {
     "book": "john",
     "chapter": 3,
-    "version": "drb",
+    "version": "cpdv",
     "language": "en",
     "verses": [
       {
@@ -170,7 +170,7 @@ Required query parameters:
 Example:
 
 ```bash
-curl "http://localhost/history?book=john&chapter=3&verse=16&version=drb"
+curl "http://localhost/history?book=john&chapter=3&verse=16&version=cpdv"
 ```
 
 Example empty-content response:
@@ -206,7 +206,7 @@ Required query parameters:
 Example:
 
 ```bash
-curl "http://localhost/teachings?book=john&chapter=3&verse=16&version=drb"
+curl "http://localhost/teachings?book=john&chapter=3&verse=16&version=cpdv"
 ```
 
 Example empty-content response:
@@ -243,12 +243,12 @@ Optional query parameters:
 
 - `verse`: integer, minimum `1`
 - `language`: defaults to `en`
-- `version`: defaults to `nrsvce`
+- `version`: defaults to `cpdv`
 
 Example:
 
 ```bash
-curl "http://localhost/study?book=john&chapter=3&verse=16&version=drb"
+curl "http://localhost/study?book=john&chapter=3&verse=16&version=cpdv"
 ```
 
 Example response:
@@ -260,7 +260,7 @@ Example response:
     "bible": {
       "book": "john",
       "chapter": 3,
-      "version": "drb",
+      "version": "cpdv",
       "language": "en",
       "verses": []
     },
@@ -330,7 +330,13 @@ The application services already accept `language` and `version` arguments inter
 - `getTeachings(language, version, book, chapter, verse)`
 - `getStudyPayload(language, version, book, chapter, verse)`
 
-The current default version is `nrsvce` and the current default language is `en`. The repository/model boundaries are intended to support additional Bible versions, languages, and content sources without rewriting the controllers.
+The current default version is `cpdv` and the current default language is `en`. The repository/model boundaries are intended to support additional Bible versions, languages, and content sources without rewriting the controllers.
+
+Import CPDV Bible text:
+
+```bash
+php artisan bible:import-cpdv --fresh
+```
 
 Planned extension points include:
 

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BIBLE_BOOKS,
+  DEFAULT_CHAPTER,
+  DEFAULT_VERSION,
   getChapterCount,
   getChapterOptions,
   isValidBook,
@@ -14,6 +16,8 @@ test('book metadata exposes the full canon and chapter counts', () => {
   assert.equal(BIBLE_BOOKS.at(-1), 'Revelation');
   assert.equal(getChapterCount('Psalms'), 150);
   assert.equal(getChapterCount('Jude'), 1);
+  assert.equal(DEFAULT_CHAPTER, 3);
+  assert.equal(DEFAULT_VERSION, 'cpdv');
 });
 
 test('chapter options are generated from the selected book metadata', () => {

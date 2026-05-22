@@ -28,8 +28,8 @@ class TeachingsController extends Controller
         }
 
         return ApiResponse::success($this->teachingsService->getTeachings(
-            language: strtolower((string) $request->query('language', 'en')),
-            version: strtolower((string) $request->query('version', 'nrsvce')),
+            language: strtolower((string) $request->query('language', config('bible.default_language', 'en'))),
+            version: strtolower((string) $request->query('version', config('bible.default_version', 'drb'))),
             book: (string) $request->query('book'),
             chapter: (int) $request->query('chapter'),
             verse: $request->query->has('verse') ? (int) $request->query('verse') : null

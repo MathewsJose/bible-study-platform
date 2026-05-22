@@ -14,12 +14,14 @@ export function useReaderData() {
   const historyStore = useHistoryStore();
   const teachingsStore = useTeachingsStore();
 
-  const { selectedBook, selectedChapter, selectedVerse } = storeToRefs(selectionStore);
+  const { selectedBook, selectedChapter, selectedVerse, selectedLanguage, selectedVersion } = storeToRefs(selectionStore);
 
   const selectionSnapshot = computed(() => ({
     book: selectedBook.value,
     chapter: selectedChapter.value,
     verse: selectedVerse.value,
+    language: selectedLanguage.value,
+    version: selectedVersion.value,
   }));
 
   async function syncSelection(currentSelection, previousSelection = null) {
@@ -35,7 +37,9 @@ export function useReaderData() {
       const payload = await fetchStudyPayload(
         currentSelection.book,
         currentSelection.chapter,
-        currentSelection.verse
+        currentSelection.verse,
+        currentSelection.language,
+        currentSelection.version
       );
 
       bibleStore.hydrateBibleContent(
@@ -66,22 +70,33 @@ export function useReaderData() {
     const isPassageChange =
       !previousSelection ||
       currentSelection.book !== previousSelection.book ||
-      currentSelection.chapter !== previousSelection.chapter;
+      currentSelection.chapter !== previousSelection.chapter ||
+      currentSelection.language !== previousSelection.language ||
+      currentSelection.version !== previousSelection.version;
 
     if (isPassageChange) {
-      await bibleStore.loadBibleContent(currentSelection.book, currentSelection.chapter);
+      await bibleStore.loadBibleContent(
+        currentSelection.book,
+        currentSelection.chapter,
+        currentSelection.language,
+        currentSelection.version
+      );
     }
 
     await Promise.all([
       historyStore.loadHistoricalData(
         currentSelection.book,
         currentSelection.chapter,
-        currentSelection.verse
+        currentSelection.verse,
+        currentSelection.language,
+        currentSelection.version
       ),
       teachingsStore.loadTeachingsData(
         currentSelection.book,
         currentSelection.chapter,
-        currentSelection.verse
+        currentSelection.verse,
+        currentSelection.language,
+        currentSelection.version
       ),
     ]);
   }

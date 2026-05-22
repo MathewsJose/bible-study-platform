@@ -10,8 +10,8 @@ Bible Study Platform is a Nuxt-powered Bible reading application focused on clea
 - Loads teachings and interpretation notes for the active verse in the right panel
 - Highlights the selected verse and updates the side panels dynamically
 - Uses compact sticky sidebars with scrollable content for larger study notes
-- Includes local sample study data for `John 1`
-- Uses `RSV-CE` as the intended Bible version target
+- Includes local sample study data for `John 3`, plus an older `John 1` demo sample
+- Defaults to the public-domain `CPDV` translation and keeps `DRB` plus `NRSV-CE` available as alternate targets
 - Falls back to local sample content when no API base URL is configured
 - Keeps existing content on screen while background refreshes complete
 
@@ -98,14 +98,15 @@ If no API base URL is set, the app uses local sample study data.
 
 The app currently ships with built-in sample content for:
 
+- `John 3`
 - `John 1`
 - Historical context entries tied to the chapter and selected verses
 - Church teaching summaries tied to the chapter and selected verses
 
 Notes:
 
-- The app is configured around the `RSV-CE` translation target
-- Because `RSV-CE` is copyrighted, the local fallback uses concise study-oriented summaries rather than a full embedded chapter text
+- The app defaults to `CPDV`; run the backend CPDV importer so a fresh backend returns full Catholic Bible content
+- `NRSV-CE` remains a selectable target, but should be backed by licensed content before production use
 - Connect a licensed Bible API or backend to serve full translation text in production
 
 ## API Contract

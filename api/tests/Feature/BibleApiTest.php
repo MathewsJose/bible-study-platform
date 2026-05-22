@@ -169,7 +169,7 @@ class BibleApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.book', 'john')
             ->assertJsonPath('data.chapter', 3)
-            ->assertJsonPath('data.version', 'nrsvce')
+            ->assertJsonPath('data.version', 'cpdv')
             ->assertJsonPath('data.language', 'en')
             ->assertJsonPath('data.verses.0.verse', 1)
             ->assertJsonPath('data.verses.0.text', 'There was a man of the Pharisees.');

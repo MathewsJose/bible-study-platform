@@ -131,7 +131,51 @@ const JOHN_1_TEACHINGS = {
   },
 };
 
+const JOHN_3_VERSES = [
+  { verse: 1, text: 'Now there was a man among the Pharisees, named Nicodemus, a leader of the Jews.' },
+  { verse: 2, text: 'He went to Jesus at night, and he said to him: "Rabbi, we know that you have arrived as a teacher from God. For no one would be able to accomplish these signs, which you accomplish, unless God were with him."' },
+  { verse: 16, text: 'For God so loved the world that he gave his only-begotten Son, so that all who believe in him may not perish, but may have eternal life.' },
+  { verse: 17, text: 'For God did not send his Son into the world, in order to judge the world, but in order that the world may be saved through him.' },
+];
+
+const JOHN_3_HISTORY = {
+  chapter: [
+    'John 3 records Jesus speaking with Nicodemus, a Pharisee and Jewish leader, about new birth and God sending the Son.',
+    'The chapter moves from a nighttime dialogue into a concentrated witness about belief, salvation, judgment, and divine love.',
+  ],
+  verses: {
+    16: [
+      'John 3:16 belongs within the larger conversation about rebirth, heavenly testimony, and the Son being sent for the life of the world.',
+      'The verse is often read together with John 3:17, which stresses salvation rather than condemnation as the purpose of the Son being sent.',
+    ],
+  },
+};
+
+const JOHN_3_TEACHINGS = {
+  chapter: [
+    'Catholic teaching commonly reads John 3 through the themes of baptismal rebirth, faith, grace, and the saving mission of Christ.',
+    'The chapter connects divine love with the sending of the Son and the offer of eternal life.',
+  ],
+  verses: {
+    16: [
+      'John 3:16 is commonly read in Catholic teaching as a concise expression of God\'s love and the saving mission of the Son.',
+      'Catholic theology connects this passage with the Incarnation, redemption, faith in Christ, and the gift of eternal life.',
+      'References: CCC 458, CCC 679',
+    ],
+  },
+};
+
 export function getSampleBibleContent(book, chapter) {
+  if (book === 'John' && Number(chapter) === 3) {
+    return {
+      translation: 'CPDV',
+      sampleMode: true,
+      copyrightNotice:
+        'This local sample mirrors the public-domain CPDV import target. Connect the backend for the database-backed reader.',
+      verses: JOHN_3_VERSES,
+    };
+  }
+
   if (book === 'John' && Number(chapter) === 1) {
     return {
       translation: SAMPLE_TRANSLATION,
@@ -150,6 +194,14 @@ export function getSampleBibleContent(book, chapter) {
 }
 
 export function getSampleHistoricalData(book, chapter, verse) {
+  if (book === 'John' && Number(chapter) === 3) {
+    return {
+      items: verse == null
+        ? JOHN_3_HISTORY.chapter
+        : [...JOHN_3_HISTORY.chapter.slice(0, 1), ...(JOHN_3_HISTORY.verses[Number(verse)] ?? [])],
+    };
+  }
+
   if (book === 'John' && Number(chapter) === 1) {
     return {
       items: verse == null
@@ -164,6 +216,14 @@ export function getSampleHistoricalData(book, chapter, verse) {
 }
 
 export function getSampleTeachingsData(book, chapter, verse) {
+  if (book === 'John' && Number(chapter) === 3) {
+    return {
+      items: verse == null
+        ? JOHN_3_TEACHINGS.chapter
+        : [...JOHN_3_TEACHINGS.chapter.slice(0, 1), ...(JOHN_3_TEACHINGS.verses[Number(verse)] ?? [])],
+    };
+  }
+
   if (book === 'John' && Number(chapter) === 1) {
     return {
       items: verse == null

@@ -57,7 +57,7 @@ class MongoVerseRepository implements VerseRepositoryInterface
     public function save(Verse $verse): void
     {
         VerseModel::updateOrCreate(
-            ['book' => $this->normalizeBook($verse->book), 'chapter' => $verse->chapter, 'verse' => $verse->verse, 'language' => 'en', 'version' => 'drb'],
+            ['book' => $this->normalizeBook($verse->book), 'chapter' => $verse->chapter, 'verse' => $verse->verse, 'language' => 'en', 'version' => config('bible.default_version', 'cpdv')],
             ['text' => $verse->text]
         );
     }

@@ -31,8 +31,8 @@ class BibleController extends Controller
         }
 
         $chapter = $this->bibleService->getBibleChapter(
-            language: strtolower((string) $request->query('language', 'en')),
-            version: strtolower((string) $request->query('version', 'nrsvce')),
+            language: strtolower((string) $request->query('language', config('bible.default_language', 'en'))),
+            version: strtolower((string) $request->query('version', config('bible.default_version', 'drb'))),
             book: (string) $request->query('book'),
             chapter: (int) $request->query('chapter')
         );

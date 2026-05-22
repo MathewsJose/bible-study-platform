@@ -3,9 +3,13 @@ import { ref, computed } from 'vue';
 import {
   DEFAULT_BOOK,
   DEFAULT_CHAPTER,
+  DEFAULT_LANGUAGE,
+  DEFAULT_VERSION,
   getChapterCount,
+  getVersionLanguage,
   isValidBook,
   isValidChapter,
+  isValidVersion,
   isValidVerseNumber,
 } from '../utils/constants';
 
@@ -13,9 +17,12 @@ export const useSelectionStore = defineStore('selection', () => {
   const selectedBook = ref(DEFAULT_BOOK);
   const selectedChapter = ref(DEFAULT_CHAPTER);
   const selectedVerse = ref(null);
+  const selectedLanguage = ref(DEFAULT_LANGUAGE);
+  const selectedVersion = ref(DEFAULT_VERSION);
 
   const selectionKey = computed(
-    () => `${selectedBook.value}:${selectedChapter.value}:${selectedVerse.value ?? 'all'}`
+    () =>
+      `${selectedLanguage.value}:${selectedVersion.value}:${selectedBook.value}:${selectedChapter.value}:${selectedVerse.value ?? 'all'}`
   );
 
   function setBook(book) {
@@ -52,6 +59,16 @@ export const useSelectionStore = defineStore('selection', () => {
     }
 
     selectedVerse.value = normalizedVerse;
+    return true;
+  }
+
+  function setVersion(version) {
+    if (!isValidVersion(version)) {
+      return false;
+    }
+
+    selectedVersion.value = version;
+    selectedLanguage.value = getVersionLanguage(version);
     return true;
   }
 
@@ -95,6 +112,8 @@ export const useSelectionStore = defineStore('selection', () => {
     selectedBook,
     selectedChapter,
     selectedVerse,
+    selectedLanguage,
+    selectedVersion,
     selectionKey,
     chapterCount,
     chapterOptions,
@@ -103,6 +122,7 @@ export const useSelectionStore = defineStore('selection', () => {
     setBook,
     setChapter,
     setVerse,
+    setVersion,
     setSelection,
     clearVerse,
   };

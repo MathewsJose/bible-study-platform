@@ -15,17 +15,22 @@ const BOOK_DEFINITIONS = [
   ['2 Chronicles', 36],
   ['Ezra', 10],
   ['Nehemiah', 13],
+  ['Tobit', 14],
+  ['Judith', 16],
   ['Esther', 10],
   ['Job', 42],
   ['Psalms', 150],
   ['Proverbs', 31],
   ['Ecclesiastes', 12],
-  ['Song of Solomon', 8],
+  ['Song of Songs', 8],
+  ['Wisdom', 19],
+  ['Sirach', 51],
   ['Isaiah', 66],
   ['Jeremiah', 52],
   ['Lamentations', 5],
+  ['Baruch', 6],
   ['Ezekiel', 48],
-  ['Daniel', 12],
+  ['Daniel', 14],
   ['Hosea', 14],
   ['Joel', 3],
   ['Amos', 9],
@@ -38,6 +43,8 @@ const BOOK_DEFINITIONS = [
   ['Haggai', 2],
   ['Zechariah', 14],
   ['Malachi', 4],
+  ['1 Maccabees', 16],
+  ['2 Maccabees', 15],
   ['Matthew', 28],
   ['Mark', 16],
   ['Luke', 24],
@@ -74,7 +81,26 @@ export const BOOK_METADATA = BOOK_DEFINITIONS.map(([name, chapters]) => ({
 
 export const BIBLE_BOOKS = BOOK_METADATA.map(({ name }) => name);
 export const DEFAULT_BOOK = 'John';
-export const DEFAULT_CHAPTER = 1;
+export const DEFAULT_CHAPTER = 3;
+export const DEFAULT_LANGUAGE = 'en';
+export const DEFAULT_VERSION = 'cpdv';
+export const BIBLE_VERSION_OPTIONS = [
+  {
+    label: 'Catholic Public Domain Version',
+    value: 'cpdv',
+    language: 'en',
+  },
+  {
+    label: 'Douay-Rheims',
+    value: 'drb',
+    language: 'en',
+  },
+  {
+    label: 'NRSV-CE',
+    value: 'nrsvce',
+    language: 'en',
+  },
+];
 
 const CHAPTERS_BY_BOOK = new Map(
   BOOK_METADATA.map(({ name, chapters }) => [name, chapters])
@@ -104,4 +130,12 @@ export function isValidChapter(book, chapter) {
 export function isValidVerseNumber(verse) {
   const verseNumber = Number(verse);
   return Number.isInteger(verseNumber) && verseNumber >= 1;
+}
+
+export function isValidVersion(version) {
+  return BIBLE_VERSION_OPTIONS.some((option) => option.value === version);
+}
+
+export function getVersionLanguage(version) {
+  return BIBLE_VERSION_OPTIONS.find((option) => option.value === version)?.language ?? DEFAULT_LANGUAGE;
 }

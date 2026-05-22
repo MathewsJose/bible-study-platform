@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         apiPrefix: '',
     )
+    ->withCommands([
+        App\Console\Commands\ImportCpdvBible::class,
+    ])
     ->withMiddleware(function (Middleware $middleware) {
         //
     })
