@@ -139,3 +139,12 @@ export function isValidVersion(version) {
 export function getVersionLanguage(version) {
   return BIBLE_VERSION_OPTIONS.find((option) => option.value === version)?.language ?? DEFAULT_LANGUAGE;
 }
+
+// Normalize a user-provided book string to the canonical book name used throughout the app.
+// Accepts case-insensitive input like 'john' or 'JOHN' and returns 'John' when found.
+export function normalizeBookName(book) {
+  if (!book) return book;
+  const asString = String(book);
+  const found = BIBLE_BOOKS.find((b) => b.toLowerCase() === asString.toLowerCase());
+  return found ?? asString;
+}

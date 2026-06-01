@@ -130,6 +130,46 @@ test('createAsyncResource can retry the latest request arguments', async () => {
   ]);
 });
 
+test('createAsyncResource clears stale data when a changed request fails', async () => {
+  const resource = createAsyncResource(
+    async (version) => {
+      if (version === 'missing') {
+        throw new Error('Version not available');
+      }
+
+      return { items: [version] };
+    },
+    (result) => result.items
+  );
+
+  await resource.load('cpdv');
+  await resource.load('missing');
+
+  assert.deepEqual(resource.data.value, []);
+  assert.equal(resource.error.value, 'Version not available');
+});
+
+test('createAsyncResource keeps current data when the same request refresh fails', async () => {
+  let shouldFail = false;
+  const resource = createAsyncResource(
+    async (version) => {
+      if (shouldFail) {
+        throw new Error('Temporary failure');
+      }
+
+      return { items: [version] };
+    },
+    (result) => result.items
+  );
+
+  await resource.load('cpdv');
+  shouldFail = true;
+  await resource.load('cpdv');
+
+  assert.deepEqual(resource.data.value, ['cpdv']);
+  assert.equal(resource.error.value, 'Temporary failure');
+});
+
 test('createAsyncResource can hydrate data from an external response', () => {
   const resource = createAsyncResource(
     async () => ({ items: [] }),
@@ -157,6 +197,17 @@ test('sample content does not contain common mojibake artifacts', () => {
   assert.equal(serialized.includes('\u00c3'), false);
   assert.equal(serialized.includes('\u00e2'), false);
   assert.equal(serialized.includes('\ufffd'), false);
+});
+
+test('sample Bible content changes by selected version', () => {
+  const cpdv = getSampleBibleContent('John', 3, 'cpdv');
+  const drb = getSampleBibleContent('John', 3, 'drb');
+  const nrsvce = getSampleBibleContent('John', 3, 'nrsvce');
+
+  assert.equal(cpdv.translation, 'CPDV');
+  assert.equal(drb.translation, 'DRB');
+  assert.notEqual(cpdv.verses[0].text, drb.verses[0].text);
+  assert.equal(nrsvce.verses.length, 0);
 });
 
 test('api payload normalization unwraps the Laravel envelope in one place', () => {

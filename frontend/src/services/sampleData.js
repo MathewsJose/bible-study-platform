@@ -138,6 +138,13 @@ const JOHN_3_VERSES = [
   { verse: 17, text: 'For God did not send his Son into the world, in order to judge the world, but in order that the world may be saved through him.' },
 ];
 
+const JOHN_3_DRB_VERSES = [
+  { verse: 1, text: 'And there was a man of the Pharisees, named Nicodemus, a ruler of the Jews.' },
+  { verse: 2, text: 'This man came to Jesus by night, and said to him: Rabbi, we know that thou art come a teacher from God.' },
+  { verse: 16, text: 'For God so loved the world, as to give his only begotten Son; that whosoever believeth in him, may not perish, but may have life everlasting.' },
+  { verse: 17, text: 'For God sent not his Son into the world, to judge the world, but that the world may be saved by him.' },
+];
+
 const JOHN_3_HISTORY = {
   chapter: [
     'John 3 records Jesus speaking with Nicodemus, a Pharisee and Jewish leader, about new birth and God sending the Son.',
@@ -165,8 +172,28 @@ const JOHN_3_TEACHINGS = {
   },
 };
 
-export function getSampleBibleContent(book, chapter) {
+export function getSampleBibleContent(book, chapter, version = 'cpdv') {
   if (book === 'John' && Number(chapter) === 3) {
+    if (version === 'drb') {
+      return {
+        translation: 'DRB',
+        sampleMode: true,
+        copyrightNotice:
+          'This local sample mirrors the bundled public-domain Douay-Rheims seed data. Connect the backend for database-backed reader versions.',
+        verses: JOHN_3_DRB_VERSES,
+      };
+    }
+
+    if (version === 'nrsvce') {
+      return {
+        translation: SAMPLE_TRANSLATION,
+        sampleMode: true,
+        copyrightNotice:
+          'NRSV-CE requires licensed source text. This local fallback shows study summaries only, not the NRSV-CE Bible text.',
+        verses: [],
+      };
+    }
+
     return {
       translation: 'CPDV',
       sampleMode: true,

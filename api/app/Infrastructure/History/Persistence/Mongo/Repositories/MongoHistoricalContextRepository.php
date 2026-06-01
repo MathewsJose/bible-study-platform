@@ -57,6 +57,16 @@ class MongoHistoricalContextRepository implements HistoricalContextRepositoryInt
             ->select(self::CONTENT_FIELDS)
             ->first();
 
+        if (!$model && $verse !== null) {
+            $model = HistoricalContextModel::where('book', $this->normalizeBook($book))
+                ->where('chapter', $chapter)
+                ->where('language', $language)
+                ->where('version', $version)
+                ->orderBy('verse')
+                ->select(self::CONTENT_FIELDS)
+                ->first();
+        }
+
         return $model ? $this->mapModel($model) : null;
     }
 

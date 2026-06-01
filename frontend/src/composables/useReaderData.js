@@ -6,7 +6,7 @@ import { useTeachingsStore } from '../stores/teachingsStore';
 import { useSelectionStore } from '../stores/selectionStore';
 import { fetchStudyPayload } from '../services/studyService';
 
-let initialized = false;
+let stopSelectionWatch = null;
 
 export function useReaderData() {
   const selectionStore = useSelectionStore();
@@ -45,19 +45,25 @@ export function useReaderData() {
       bibleStore.hydrateBibleContent(
         payload.bible || {},
         currentSelection.book,
-        currentSelection.chapter
+        currentSelection.chapter,
+        currentSelection.language,
+        currentSelection.version
       );
       historyStore.hydrateHistoricalData(
         payload.history || {},
         currentSelection.book,
         currentSelection.chapter,
-        currentSelection.verse
+        currentSelection.verse,
+        currentSelection.language,
+        currentSelection.version
       );
       teachingsStore.hydrateTeachingsData(
         payload.teachings || {},
         currentSelection.book,
         currentSelection.chapter,
-        currentSelection.verse
+        currentSelection.verse,
+        currentSelection.language,
+        currentSelection.version
       );
 
       return true;
@@ -104,23 +110,34 @@ export function useReaderData() {
   async function ensureInitialData() {
     const currentSelection = selectionSnapshot.value;
 
-    if (
-      bibleStore.hasLoaded.value &&
-      historyStore.hasLoaded.value &&
-      teachingsStore.hasLoaded.value
-    ) {
-      return;
-    }
-
     await syncSelection(currentSelection);
   }
 
-  if (!initialized) {
-    watch(selectionSnapshot, async (currentSelection, previousSelection) => {
-      await syncSelection(currentSelection, previousSelection);
-    });
+  if (import.meta.client && stopSelectionWatch === null) {
+    stopSelectionWatch = watch(
+      [selectedBook, selectedChapter, selectedVerse, selectedLanguage, selectedVersion],
+      async (currentValues, previousValues) => {
+        const currentSelection = {
+          book: currentValues[0],
+          chapter: currentValues[1],
+          verse: currentValues[2],
+          language: currentValues[3],
+          version: currentValues[4],
+        };
 
-    initialized = true;
+        const previousSelection = previousValues
+          ? {
+              book: previousValues[0],
+              chapter: previousValues[1],
+              verse: previousValues[2],
+              language: previousValues[3],
+              version: previousValues[4],
+            }
+          : null;
+
+        await syncSelection(currentSelection, previousSelection);
+      }
+    );
   }
 
   return {

@@ -8,5 +8,5 @@ class HistoricalContextModel extends Model
 {
     protected $connection = 'mongodb';
     protected $collection = 'historical_contexts';
-    protected $fillable = ['book', 'chapter', 'verse', 'summary', 'details', 'references', 'language', 'version'];
+    protected $fillable = ['book', 'chapter', 'verse', 'summary', 'details', 'references', 'sources', 'language', 'version'];
 }

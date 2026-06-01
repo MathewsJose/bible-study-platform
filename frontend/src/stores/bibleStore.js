@@ -16,16 +16,16 @@ export const useBibleStore = defineStore('bible', () => {
     return data.verses || [];
   });
 
-  async function loadBibleContent(book, chapter) {
-    return resource.load(book, chapter);
+  async function loadBibleContent(book, chapter, language, version) {
+    return resource.load(book, chapter, language, version);
   }
 
   async function retry() {
     return resource.retry();
   }
 
-  function hydrateBibleContent(data, book, chapter) {
-    return resource.hydrate(data, book, chapter);
+  function hydrateBibleContent(data, book, chapter, language, version) {
+    return resource.hydrate(data, book, chapter, language, version);
   }
 
   return {

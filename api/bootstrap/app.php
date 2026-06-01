@@ -14,9 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         App\Console\Commands\ImportCpdvBible::class,
+        App\Console\Commands\ImportJohnHistoricalContext::class,
+        App\Console\Commands\ImportJohnCatholicTeachings::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

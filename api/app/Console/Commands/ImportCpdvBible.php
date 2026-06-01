@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Infrastructure\Bible\Persistence\Mongo\Models\VerseModel;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -11,6 +12,7 @@ class ImportCpdvBible extends Command
 {
     protected $signature = 'bible:import-cpdv
         {--source=https://sacredbible.org/catholic/index.htm : Official CPDV index URL}
+        {--book=* : Import only matching book name(s), for example --book=john}
         {--language=en : Language code to store}
         {--bible-version=cpdv : Bible version key to store}
         {--fresh : Delete existing verses for this language/version before importing}';
@@ -27,6 +29,7 @@ class ImportCpdvBible extends Command
         $this->info("Reading CPDV index: $source");
         $index = $this->fetch($source);
         $books = $this->parseIndex($index);
+        $selectedBooks = $this->selectedBooks();
 
         if ($books === []) {
             $this->error('No CPDV book links were found.');
@@ -34,10 +37,28 @@ class ImportCpdvBible extends Command
             return self::FAILURE;
         }
 
+        if ($selectedBooks !== []) {
+            $books = array_values(array_filter(
+                $books,
+                fn (array $book): bool => in_array(strtolower($book['name']), $selectedBooks, true)
+            ));
+
+            if ($books === []) {
+                $this->error('No CPDV book links matched: '.implode(', ', $selectedBooks));
+
+                return self::FAILURE;
+            }
+        }
+
         if ($this->option('fresh')) {
-            $deleted = VerseModel::where('language', $language)
+            $deleteQuery = VerseModel::where('language', $language)
                 ->where('version', $version)
-                ->delete();
+                ->when(
+                    $selectedBooks !== [],
+                    fn ($query) => $query->whereIn('book', array_map('strtolower', array_column($books, 'name')))
+                );
+
+            $deleted = $deleteQuery->delete();
             $this->info("Deleted $deleted existing $version verses.");
         }
 
@@ -78,9 +99,23 @@ class ImportCpdvBible extends Command
             $this->line("  Imported ".count($verses).' verses.');
         }
 
+        Cache::flush();
         $this->info("Imported $total CPDV verses as language=$language version=$version.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function selectedBooks(): array
+    {
+        return collect((array) $this->option('book'))
+            ->map(fn (string $book): string => strtolower(trim($book)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

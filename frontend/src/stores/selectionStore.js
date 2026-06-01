@@ -11,6 +11,7 @@ import {
   isValidChapter,
   isValidVersion,
   isValidVerseNumber,
+  normalizeBookName,
 } from '../utils/constants';
 
 export const useSelectionStore = defineStore('selection', () => {
@@ -26,11 +27,12 @@ export const useSelectionStore = defineStore('selection', () => {
   );
 
   function setBook(book) {
-    if (!isValidBook(book)) {
+    const normalizedBook = normalizeBookName(book);
+    if (!isValidBook(normalizedBook)) {
       return false;
     }
 
-    selectedBook.value = book;
+    selectedBook.value = normalizedBook;
     selectedChapter.value = 1;
     selectedVerse.value = null;
     return true;
@@ -73,12 +75,13 @@ export const useSelectionStore = defineStore('selection', () => {
   }
 
   function setSelection({ book, chapter, verse = null }) {
-    if (!isValidBook(book)) {
+    const normalizedBook = normalizeBookName(book);
+    if (!isValidBook(normalizedBook)) {
       return false;
     }
 
     const normalizedChapter = Number(chapter);
-    if (!isValidChapter(book, normalizedChapter)) {
+    if (!isValidChapter(normalizedBook, normalizedChapter)) {
       return false;
     }
 
@@ -86,7 +89,7 @@ export const useSelectionStore = defineStore('selection', () => {
       return false;
     }
 
-    selectedBook.value = book;
+    selectedBook.value = normalizedBook;
     selectedChapter.value = normalizedChapter;
     selectedVerse.value = verse == null ? null : Number(verse);
 

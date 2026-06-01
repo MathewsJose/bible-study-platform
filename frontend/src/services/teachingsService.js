@@ -1,11 +1,7 @@
-import { apiGet, getApiBaseUrl } from './api';
+import { apiGet } from './api';
 import { getSampleTeachingsData } from './sampleData';
 
 export async function fetchTeachingsData(book, chapter, verse, language, version) {
-  if (!getApiBaseUrl()) {
-    return getSampleTeachingsData(book, chapter, verse);
-  }
-
   try {
     return await apiGet('/teachings', { book, chapter, verse, language, version });
   } catch (error) {

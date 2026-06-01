@@ -10,7 +10,12 @@ export function getApiBaseUrl() {
   }
 
   if (import.meta.client) {
-    return window.__NUXT__?.config?.public?.apiBaseUrl || '';
+    // If a runtime config isn't set, default to the current hostname without the
+    // front-end port so API calls target the backend (e.g. nginx on port 80).
+    return (
+      window.__NUXT__?.config?.public?.apiBaseUrl ||
+      `${window.location.protocol}//${window.location.hostname}`
+    );
   }
 
   return process.env.NUXT_PUBLIC_API_BASE_URL || process.env.VITE_API_BASE_URL || '';

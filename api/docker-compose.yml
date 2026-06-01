@@ -12,9 +12,14 @@ services:
       /var/www/storage/framework/sessions
       /var/www/storage/framework/views
       /var/www/bootstrap/cache
+      && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
+      && chmod -R 777 /var/www/storage /var/www/bootstrap/cache
       && php-fpm"
     volumes:
       - ./:/var/www
+      - storage-data:/var/www/storage
+    environment:
+      - CACHE_DRIVER=array
     expose:
       - "9000"
     depends_on:
@@ -49,6 +54,7 @@ services:
 
 volumes:
   mongo-data:
+  storage-data:
 
 networks:
   bible-net:

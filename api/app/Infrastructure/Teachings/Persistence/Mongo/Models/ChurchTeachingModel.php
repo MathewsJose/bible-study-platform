@@ -8,5 +8,5 @@ class ChurchTeachingModel extends Model
 {
     protected $connection = 'mongodb';
     protected $collection = 'church_teachings';
-    protected $fillable = ['book', 'chapter', 'verse', 'summary', 'details', 'tradition', 'references', 'language', 'version'];
+    protected $fillable = ['book', 'chapter', 'verse', 'summary', 'details', 'tradition', 'references', 'sources', 'language', 'version'];
 }

@@ -1,11 +1,7 @@
-import { apiGet, getApiBaseUrl } from './api';
+import { apiGet } from './api';
 import { getSampleHistoricalData } from './sampleData';
 
 export async function fetchHistoricalData(book, chapter, verse, language, version) {
-  if (!getApiBaseUrl()) {
-    return getSampleHistoricalData(book, chapter, verse);
-  }
-
   try {
     return await apiGet('/history', { book, chapter, verse, language, version });
   } catch (error) {

@@ -26,6 +26,7 @@ export function createAsyncResource(fetcher, mapResult) {
   async function load(...args) {
     const requestId = requestManager.begin();
     const shouldRefreshInBackground = hasLoaded.value;
+    const isSameRequest = JSON.stringify(lastArgs.value) === JSON.stringify(args);
     lastArgs.value = args;
 
     if (shouldRefreshInBackground) {
@@ -54,7 +55,7 @@ export function createAsyncResource(fetcher, mapResult) {
 
       error.value = err.message || 'Unexpected error';
 
-      if (!hasLoaded.value) {
+      if (!hasLoaded.value || !isSameRequest) {
         data.value = [];
       }
 

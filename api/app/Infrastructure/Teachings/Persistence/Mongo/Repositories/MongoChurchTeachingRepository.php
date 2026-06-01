@@ -58,6 +58,16 @@ class MongoChurchTeachingRepository implements ChurchTeachingRepositoryInterface
             ->select(self::CONTENT_FIELDS)
             ->first();
 
+        if (!$model && $verse !== null) {
+            $model = ChurchTeachingModel::where('book', $this->normalizeBook($book))
+                ->where('chapter', $chapter)
+                ->where('language', $language)
+                ->where('version', $version)
+                ->orderBy('verse')
+                ->select(self::CONTENT_FIELDS)
+                ->first();
+        }
+
         return $model ? $this->mapModel($model) : null;
     }
 
