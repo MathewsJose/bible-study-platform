@@ -1,0 +1,124 @@
+openapi: 3.1.0
+info:
+  title: Catholic Bible AI Knowledge Service
+  version: 1.0.0
+  description: REST API for managing Catholic theological knowledge documents and search.
+servers:
+  - url: http://localhost:8080/api
+paths:
+  /documents:
+    get:
+      summary: Paginated document listing
+      responses:
+        "200":
+          description: Paginated documents
+    post:
+      summary: Create a knowledge document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeDocumentInput"
+      responses:
+        "201":
+          description: Created
+  /documents/{id}:
+    get:
+      summary: Retrieve a document
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      responses:
+        "200": { description: Found }
+        "404": { description: Not found }
+    put:
+      summary: Update a document
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeDocumentInput"
+      responses:
+        "200": { description: Updated }
+    delete:
+      summary: Delete a document
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      responses:
+        "204": { description: Deleted }
+  /documents/search:
+    post:
+      summary: Full text search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses:
+        "200": { description: Ranked text results }
+  /documents/semantic-search:
+    post:
+      summary: Vector semantic search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses:
+        "200": { description: Ranked vector results }
+components:
+  parameters:
+    DocumentId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    KnowledgeDocumentInput:
+      type: object
+      required: [source_type, source_name, tradition, reference, title, content]
+      properties:
+        source_type:
+          type: string
+          enum: [bible_verse, bible_chapter, catechism, church_father, papal_document, council_document, commentary, article]
+        source_name:
+          type: string
+        tradition:
+          type: string
+          enum: [catholic, latin, eastern_catholic, byzantine_catholic, maronite, patristic, ecumenical_council]
+        reference:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        embedding:
+          type: array
+          minItems: 1536
+          maxItems: 1536
+          items:
+            type: number
+            minimum: -1
+            maximum: 1
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 2
+          maxLength: 500
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
