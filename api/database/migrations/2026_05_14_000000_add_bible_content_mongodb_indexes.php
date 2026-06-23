@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if ($this->shouldSkipMongoIndexes()) {
+            return;
+        }
+
         $this->collection('verses')->createIndex(
             ['language' => 1, 'version' => 1, 'book' => 1, 'chapter' => 1, 'verse' => 1],
             ['name' => 'verses_reference_lookup_idx']
@@ -32,9 +36,27 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if ($this->shouldSkipMongoIndexes()) {
+            return;
+        }
+
         $this->dropIndexIfExists('verses', 'verses_reference_lookup_idx');
         $this->dropIndexIfExists('historical_contexts', 'historical_contexts_reference_lookup_idx');
         $this->dropIndexIfExists('church_teachings', 'church_teachings_reference_lookup_idx');
+    }
+
+    private function shouldSkipMongoIndexes(): bool
+    {
+        if (app()->environment('testing')) {
+            return true;
+        }
+
+        try {
+            DB::connection('mongodb')->getMongoDB()->listCollections();
+            return false;
+        } catch (\Throwable) {
+            return true;
+        }
     }
 
     private function collection(string $name): Collection
