@@ -73,23 +73,33 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
             ->all());
     }
 
-    public function semanticSearch(array $embedding, int $limit): array
+    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page): LengthAwarePaginator
     {
         if (DB::getDriverName() !== 'pgsql') {
-            return [];
+            return new LengthAwarePaginator([], 0, $limit, $page);
         }
 
         $vector = '['.implode(',', $embedding).']';
+        $similarityExpression = '1 - (embedding <=> ?::vector)';
 
-        return array_values(KnowledgeDocumentRecord::query()
+        /** @var LengthAwarePaginator<int, KnowledgeDocumentRecord> $results */
+        $results = KnowledgeDocumentRecord::query()
             ->select('knowledge_documents.*')
-            ->selectRaw('1 - (embedding <=> ?::vector) as similarity', [$vector])
+            ->selectRaw("{$similarityExpression} as similarity", [$vector])
             ->whereNotNull('embedding')
+            ->whereRaw("{$similarityExpression} >= ?", [$vector, $threshold])
             ->orderByRaw('embedding <=> ?::vector', [$vector])
-            ->limit($limit)
-            ->get()
-            ->map(fn (KnowledgeDocumentRecord $record): array => ['record' => $record, 'score' => (float) ($record->getAttribute('similarity') ?? 0.0)])
-            ->all());
+            ->paginate($limit, ['*'], 'page', $page);
+
+        /** @var LengthAwarePaginator<int, array{record: KnowledgeDocumentRecord, score: float}> $mapped */
+        $mapped = $results->through(
+            fn (KnowledgeDocumentRecord $record): array => [
+                'record' => $record,
+                'score' => (float) ($record->getAttribute('similarity') ?? 0.0),
+            ],
+        );
+
+        return $mapped;
     }
 
     /**

@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'embeddings_url' => env('OPENAI_EMBEDDINGS_URL', 'https://api.openai.com/v1/embeddings'),
+        'embedding_model' => env('OPENAI_EMBEDDING_MODEL'),
+        'embedding_dimensions' => env('OPENAI_EMBEDDING_DIMENSIONS') !== null
+            ? (int) env('OPENAI_EMBEDDING_DIMENSIONS')
+            : null,
+        'embedding_provider' => env('EMBEDDING_PROVIDER', 'openai'),
+        'retry_attempts' => (int) env('OPENAI_RETRY_ATTEMPTS', 3),
+        'retry_sleep_ms' => (int) env('OPENAI_RETRY_SLEEP_MS', 200),
+    ],
+
 ];

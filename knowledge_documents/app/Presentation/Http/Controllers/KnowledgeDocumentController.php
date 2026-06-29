@@ -6,6 +6,7 @@ namespace App\Presentation\Http\Controllers;
 
 use App\Application\Knowledge\DTOs\KnowledgeDocumentData;
 use App\Application\Knowledge\DTOs\RankedKnowledgeDocumentData;
+use App\Application\Knowledge\Exceptions\EmbeddingProviderUnavailableException;
 use App\Application\Knowledge\Services\KnowledgeDocumentService;
 use App\Application\Knowledge\Services\SearchKnowledgeDocumentsService;
 use App\Application\Knowledge\Services\SemanticSearchService;
@@ -16,6 +17,7 @@ use App\Presentation\Http\Requests\StoreKnowledgeDocumentRequest;
 use App\Presentation\Http\Requests\UpdateKnowledgeDocumentRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 
 final class KnowledgeDocumentController extends Controller
 {
@@ -85,16 +87,41 @@ final class KnowledgeDocumentController extends Controller
 
     public function semanticSearch(SearchKnowledgeDocumentsRequest $request): JsonResponse
     {
-        $results = $this->semanticSearch->search(
-            query: (string) $request->string('query'),
-            limit: (int) $request->integer('limit', 10),
-        );
+        $limit = (int) $request->integer('limit', (int) config('knowledge.semantic_search.limit', 10));
+        $threshold = (float) ($request->validated('score_threshold') ?? config('knowledge.semantic_search.score_threshold', 0.0));
+        $page = (int) $request->integer('page', 1);
+
+        try {
+            $results = $this->semanticSearch->search(
+                query: (string) $request->string('query'),
+                limit: $limit,
+                threshold: $threshold,
+                page: $page,
+            );
+        } catch (EmbeddingProviderUnavailableException $exception) {
+            Log::warning('Semantic search embedding provider unavailable.', [
+                'exception' => $exception,
+            ]);
+
+            return response()->json([
+                'message' => 'Semantic search is unavailable because embeddings are not configured.',
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
 
         return response()->json([
-            'data' => array_map(
-                static fn (RankedKnowledgeDocumentData $result): array => $result->toArray(),
-                $results,
-            ),
+            'results' => $results->getCollection()
+                ->map(static fn (RankedKnowledgeDocumentData $result): array => [
+                    'reference' => $result->document->reference,
+                    'score' => $result->score,
+                ])
+                ->values(),
+            'meta' => [
+                'current_page' => $results->currentPage(),
+                'last_page' => $results->lastPage(),
+                'limit' => $results->perPage(),
+                'total' => $results->total(),
+                'score_threshold' => $threshold,
+            ],
         ]);
     }
 }

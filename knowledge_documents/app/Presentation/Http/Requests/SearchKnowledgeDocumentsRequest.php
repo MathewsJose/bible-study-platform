@@ -18,7 +18,9 @@ final class SearchKnowledgeDocumentsRequest extends FormRequest
     {
         return [
             'query' => ['required', 'string', 'min:2', 'max:500'],
-            'limit' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:'.((int) config('knowledge.semantic_search.max_limit', 50))],
+            'score_threshold' => ['sometimes', 'numeric', 'min:0', 'max:1'],
+            'page' => ['sometimes', 'integer', 'min:1'],
         ];
     }
 }

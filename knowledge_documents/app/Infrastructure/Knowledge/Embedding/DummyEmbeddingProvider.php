@@ -20,4 +20,9 @@ final class DummyEmbeddingProvider implements EmbeddingProviderInterface
 
         return $values;
     }
+
+    public function embedMany(array $texts): array
+    {
+        return array_map(fn (string $text): array => $this->embed($text), $texts);
+    }
 }

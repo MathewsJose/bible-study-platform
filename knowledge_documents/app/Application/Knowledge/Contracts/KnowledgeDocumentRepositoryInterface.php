@@ -32,7 +32,7 @@ interface KnowledgeDocumentRepositoryInterface
 
     /**
      * @param  list<float>  $embedding
-     * @return list<array{record: KnowledgeDocumentRecord, score: float}>
+     * @return LengthAwarePaginator<int, array{record: KnowledgeDocumentRecord, score: float}>
      */
-    public function semanticSearch(array $embedding, int $limit): array;
+    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page): LengthAwarePaginator;
 }

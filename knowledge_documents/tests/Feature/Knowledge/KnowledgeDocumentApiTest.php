@@ -98,5 +98,6 @@ it('returns an empty semantic result set on databases without pgvector', functio
 
     postJson('/api/documents/semantic-search', ['query' => 'grace and salvation'])
         ->assertOk()
-        ->assertJsonPath('data', []);
+        ->assertJsonPath('results', [])
+        ->assertJsonPath('meta.total', 0);
 });
