@@ -22,7 +22,7 @@ final class BibleImportCommand extends Command
 
         if (! is_file($path)) {
             $this->error("Bible import file not found: {$path}");
-            $this->displayResult(new ImportResult(0, 0, 1));
+            $this->displayResult(new ImportResult(failures: 1));
 
             return self::FAILURE;
         }
@@ -38,12 +38,12 @@ final class BibleImportCommand extends Command
                 }
             }
 
-            $this->displayResult(new ImportResult(0, 0, 1));
+            $this->displayResult(new ImportResult(failures: 1));
 
             return self::FAILURE;
         } catch (JsonException $exception) {
             $this->error('Bible import JSON is invalid: '.$exception->getMessage());
-            $this->displayResult(new ImportResult(0, 0, 1));
+            $this->displayResult(new ImportResult(failures: 1));
 
             return self::FAILURE;
         }
@@ -55,8 +55,8 @@ final class BibleImportCommand extends Command
 
     private function displayResult(ImportResult $result): void
     {
-        $this->line("documents imported: {$result->imported}");
-        $this->line("skipped duplicates: {$result->skippedDuplicates}");
+        $this->line("documents imported: {$result->created}");
+        $this->line("skipped duplicates: {$result->skipped}");
         $this->line("failures: {$result->failures}");
     }
 

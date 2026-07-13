@@ -34,8 +34,8 @@ final class KnowledgeImportCommand extends Command
 
         $this->importers = [
             'bible' => fn (string $path): ImportResult => $this->bibleImporter->importFile($path),
-            'catechism' => fn (string $path): ImportResult => $this->importTextFile($path, $this->catechismImporter),
-            'church_father' => fn (string $path): ImportResult => $this->importTextFile($path, $this->churchFatherImporter),
+            'catechism' => fn (string $path): ImportResult => $this->catechismImporter->importFile($path),
+            'church_father' => fn (string $path): ImportResult => $this->churchFatherImporter->importFile($path),
         ];
     }
 
@@ -66,10 +66,10 @@ final class KnowledgeImportCommand extends Command
 
             try {
                 $result = $this->importers[$fileType]($path);
-                $imported += $result->imported;
-                $skipped += $result->skippedDuplicates;
+
+                $imported += $result->created;
+                $skipped += $result->skipped;
                 $failed += $result->failures;
-                $this->persistManifest($path, $fileType, $result);
             } catch (\Throwable $exception) {
                 $failed++;
                 $this->error("Failed to import {$path}: {$exception->getMessage()}");
@@ -146,55 +146,8 @@ final class KnowledgeImportCommand extends Command
     {
         $hash = hash_file('sha256', $path);
 
-        return ImportManifest::query()->where('file_hash', $hash)->exists();
+        return ImportManifest::query()->where('checksum', $hash)->where('status', 'completed')->exists();
     }
 
-    private function persistManifest(string $path, string $fileType, ImportResult $result): void
-    {
-        ImportManifest::query()->create([
-            'file_path' => $path,
-            'file_hash' => hash_file('sha256', $path),
-            'file_type' => $fileType,
-            'source_name' => $this->sourceNameFor($path, $fileType),
-            'total_records' => $result->imported + $result->skippedDuplicates + $result->failures,
-            'imported_records' => $result->imported,
-            'skipped_records' => $result->skippedDuplicates,
-            'failed_records' => $result->failures,
-            'imported_at' => now(),
-        ]);
-    }
 
-    private function sourceNameFor(string $path, string $fileType): string
-    {
-        if ($fileType === 'bible') {
-            return 'Bible';
-        }
-
-        return basename($path);
-    }
-
-    private function importTextFile(string $path, object $importer): ImportResult
-    {
-        $content = file_get_contents($path);
-        if ($content === false) {
-            return new ImportResult(0, 0, 1);
-        }
-
-        $segments = preg_split('/\n\s*\n/', trim($content)) ?: [];
-        $records = [];
-        foreach ($segments as $index => $segment) {
-            $records[] = [
-                'source_name' => basename($path),
-                'reference' => basename($path).'#'.($index + 1),
-                'title' => basename($path).'#'.($index + 1),
-                'content' => trim($segment),
-                'tradition' => 'catholic',
-                'metadata' => ['source_file' => basename($path), 'segment' => $index + 1],
-            ];
-        }
-
-        $importer->import($records);
-
-        return new ImportResult(count($records), 0, 0);
-    }
 }

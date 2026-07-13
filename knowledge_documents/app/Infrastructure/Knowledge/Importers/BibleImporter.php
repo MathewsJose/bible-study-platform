@@ -7,17 +7,20 @@ namespace App\Infrastructure\Knowledge\Importers;
 use App\Application\Knowledge\DTOs\ImportResult;
 use App\Domain\Knowledge\Enums\SourceType;
 use App\Domain\Knowledge\Enums\Tradition;
-use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
+use App\Infrastructure\Knowledge\Importers\ImportManifest;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 use JsonException;
 use Throwable;
 
 final readonly class BibleImporter
 {
+    use TracksImportManifests;
+
     public const SOURCE_NAME = 'Bible';
 
     /**
@@ -26,23 +29,41 @@ final readonly class BibleImporter
      */
     public function importFile(string $path): ImportResult
     {
-        $contents = file_get_contents($path);
+        $manifest = $this->startManifest($path, 'bible', self::SOURCE_NAME);
 
-        if ($contents === false) {
-            throw ValidationException::withMessages([
-                'path' => "Unable to read Bible import file [{$path}].",
+        try {
+            $contents = file_get_contents($path);
+
+            if ($contents === false) {
+                throw ValidationException::withMessages([
+                    'path' => "Unable to read Bible import file [{$path}].",
+                ]);
+            }
+
+            $payload = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+
+            if (! is_array($payload)) {
+                throw ValidationException::withMessages([
+                    'file' => 'Bible import file must contain a JSON object.',
+                ]);
+            }
+
+            $manifest->update([
+                'source_url' => $payload['source_url'] ?? null,
+                'license' => $payload['license'] ?? null,
+                'license_url' => $payload['license_url'] ?? null,
             ]);
+
+            $result = $this->import($payload, $path);
+
+            $this->finishManifest($manifest, $result);
+
+            return $result;
+        } catch (Throwable $exception) {
+            $this->failManifest($manifest, $exception);
+
+            throw $exception;
         }
-
-        $payload = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
-
-        if (! is_array($payload)) {
-            throw ValidationException::withMessages([
-                'file' => 'Bible import file must contain a JSON object.',
-            ]);
-        }
-
-        return $this->import($payload, $path);
     }
 
     /**
@@ -97,14 +118,14 @@ final readonly class BibleImporter
             }
         }
 
-        $result = new ImportResult($imported, $skippedDuplicates, $failures);
+        $result = new ImportResult(created: $imported, skipped: $skippedDuplicates, failures: $failures);
 
         Log::info('Bible import completed.', [
             'path' => $path,
             'book' => $book,
             'chapter' => $chapter,
-            'imported' => $result->imported,
-            'skipped_duplicates' => $result->skippedDuplicates,
+            'imported' => $result->created,
+            'skipped_duplicates' => $result->skipped,
             'failures' => $result->failures,
         ]);
 
@@ -126,6 +147,9 @@ final readonly class BibleImporter
             'verses' => ['required', 'array', 'min:1'],
             'verses.*.verse' => ['required', 'integer', 'min:1'],
             'verses.*.text' => ['required', 'string'],
+            'source_url' => ['nullable', 'string', 'url'],
+            'license' => ['nullable', 'string'],
+            'license_url' => ['nullable', 'string', 'url'],
         ])->validate();
 
         return $validated;

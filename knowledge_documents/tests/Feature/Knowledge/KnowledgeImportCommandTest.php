@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Knowledge\Enums\SourceType;
+use App\Infrastructure\Knowledge\Importers\ImportManifest;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 
@@ -42,8 +43,16 @@ it('imports multiple supported files from configured directories and records man
     assertDatabaseCount('knowledge_documents', 6);
     assertDatabaseCount('import_manifests', 3);
     assertDatabaseHas('import_manifests', [
-        'file_type' => 'bible',
-        'imported_records' => 2,
+        'source_type' => 'bible',
+        'records_created' => 2,
+        'status' => 'completed',
+        'importer' => 'BibleImporter',
+    ]);
+    assertDatabaseHas('import_manifests', [
+        'source_type' => 'catechism',
+        'records_created' => 2,
+        'status' => 'completed',
+        'importer' => 'CatechismImporter',
     ]);
     assertDatabaseHas('knowledge_documents', [
         'source_type' => SourceType::Catechism->value,
@@ -79,4 +88,31 @@ it('skips files that were already imported in a previous run', function (): void
         ->and($secondOutput)->toContain('failed: 0');
 
     assertDatabaseCount('import_manifests', 1);
+});
+
+it('records failed manifests when an error occurs', function (): void {
+    $importRoot = storage_path('app/testing-imports-fail');
+    if (! is_dir($importRoot)) {
+        mkdir($importRoot, 0777, true);
+    }
+
+    $biblePath = $importRoot.'/bible-invalid.json';
+    file_put_contents($biblePath, '{"invalid": "json"'); // Malformed JSON
+
+    config()->set('knowledge.import.directories', [$importRoot]);
+
+    Artisan::call('knowledge:import');
+
+    assertDatabaseHas('import_manifests', [
+        'source_type' => 'bible',
+        'status' => 'failed',
+        'importer' => 'BibleImporter',
+    ]);
+
+    $manifest = ImportManifest::query()->where('source_type', 'bible')->where('status', 'failed')->first();
+    expect($manifest->error_message)->not->toBeNull();
+
+    // Cleanup
+    unlink($biblePath);
+    rmdir($importRoot);
 });
