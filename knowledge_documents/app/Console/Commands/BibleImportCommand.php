@@ -12,7 +12,13 @@ use JsonException;
 
 final class BibleImportCommand extends Command
 {
-    protected $signature = 'bible:import {path : Path to a Bible chapter JSON file}';
+    protected $signature = 'bible:import 
+                            {path : Path to a Bible chapter JSON file}
+                            {--source-url= : The source URL of the Bible data}
+                            {--license= : The license of the Bible data}
+                            {--license-url= : The URL to the license text}
+                            {--rights-notes= : Additional rights or copyright notes}
+                            {--language=en : The language of the documents}';
 
     protected $description = 'Import Bible verses from a JSON chapter file into knowledge documents.';
 
@@ -28,7 +34,15 @@ final class BibleImportCommand extends Command
         }
 
         try {
-            $result = $importer->importFile($path);
+            $metadata = array_filter([
+                'source_url' => $this->option('source-url'),
+                'license' => $this->option('license'),
+                'license_url' => $this->option('license-url'),
+                'rights_notes' => $this->option('rights-notes'),
+                'language' => $this->option('language'),
+            ]);
+
+            $result = $importer->importFile($path, $metadata);
         } catch (ValidationException $exception) {
             $this->error('Bible import validation failed.');
 

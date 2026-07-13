@@ -36,6 +36,15 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
         $record->delete();
     }
 
+    public function findBySource(string $sourceType, string $sourceName, string $reference): ?KnowledgeDocumentRecord
+    {
+        return KnowledgeDocumentRecord::query()
+            ->where('source_type', $sourceType)
+            ->where('source_name', $sourceName)
+            ->where('reference', $reference)
+            ->first();
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, KnowledgeDocumentRecord>

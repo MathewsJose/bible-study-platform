@@ -18,7 +18,12 @@ use Symfony\Component\Finder\Finder;
 
 final class KnowledgeImportCommand extends Command
 {
-    protected $signature = 'knowledge:import';
+    protected $signature = 'knowledge:import
+                            {--source-url= : The source URL of the data}
+                            {--license= : The license of the data}
+                            {--license-url= : The URL to the license text}
+                            {--rights-notes= : Additional rights or copyright notes}
+                            {--language=en : The language of the documents}';
 
     protected $description = 'Scan configured import directories, detect files, and import supported documents.';
 
@@ -33,9 +38,9 @@ final class KnowledgeImportCommand extends Command
         parent::__construct();
 
         $this->importers = [
-            'bible' => fn (string $path): ImportResult => $this->bibleImporter->importFile($path),
-            'catechism' => fn (string $path): ImportResult => $this->catechismImporter->importFile($path),
-            'church_father' => fn (string $path): ImportResult => $this->churchFatherImporter->importFile($path),
+            'bible' => fn (string $path, array $metadata = []): ImportResult => $this->bibleImporter->importFile($path, $metadata),
+            'catechism' => fn (string $path, array $metadata = []): ImportResult => $this->catechismImporter->importFile($path, $metadata),
+            'church_father' => fn (string $path, array $metadata = []): ImportResult => $this->churchFatherImporter->importFile($path, $metadata),
         ];
     }
 
@@ -43,6 +48,14 @@ final class KnowledgeImportCommand extends Command
     {
         $directories = config('knowledge.import.directories', []);
         $files = $this->collectFiles($directories);
+
+        $metadata = array_filter([
+            'source_url' => $this->option('source-url'),
+            'license' => $this->option('license'),
+            'license_url' => $this->option('license-url'),
+            'rights_notes' => $this->option('rights-notes'),
+            'language' => $this->option('language'),
+        ]);
 
         $imported = 0;
         $skipped = 0;
@@ -65,7 +78,7 @@ final class KnowledgeImportCommand extends Command
             }
 
             try {
-                $result = $this->importers[$fileType]($path);
+                $result = $this->importers[$fileType]($path, $metadata);
 
                 $imported += $result->created;
                 $skipped += $result->skipped;

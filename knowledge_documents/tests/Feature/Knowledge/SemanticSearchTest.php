@@ -80,6 +80,15 @@ final class SemanticSearchRepository implements KnowledgeDocumentRepositoryInter
         $record->delete();
     }
 
+    public function findBySource(string $sourceType, string $sourceName, string $reference): ?KnowledgeDocumentRecord
+    {
+        return KnowledgeDocumentRecord::query()
+            ->where('source_type', $sourceType)
+            ->where('source_name', $sourceName)
+            ->where('reference', $reference)
+            ->first();
+    }
+
     public function paginate(array $filters, int $perPage): LengthAwarePaginator
     {
         return new LengthAwarePaginator([], 0, $perPage);

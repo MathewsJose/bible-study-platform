@@ -7,7 +7,9 @@ namespace App\Infrastructure\Knowledge\Importers;
 use App\Application\Knowledge\Contracts\DocumentImporterInterface;
 use App\Application\Knowledge\DTOs\ImportResult;
 use App\Application\Knowledge\Services\KnowledgeDocumentService;
+use App\Domain\Knowledge\Enums\ImportStatus;
 use App\Domain\Knowledge\Enums\SourceType;
+use App\Domain\Knowledge\ValueObjects\SourceMetadata;
 
 abstract class AbstractDocumentImporter implements DocumentImporterInterface
 {
@@ -17,22 +19,46 @@ abstract class AbstractDocumentImporter implements DocumentImporterInterface
 
     abstract protected function sourceType(): SourceType;
 
-    public function import(iterable $records): int
+    /**
+     * @param  iterable<array<string, mixed>>  $records
+     */
+    public function import(iterable $records, ?SourceMetadata $sourceMetadata = null): ImportResult
     {
-        $count = 0;
+        $created = 0;
+        $updated = 0;
+        $skipped = 0;
+        $failures = 0;
 
         foreach ($records as $record) {
             $record['source_type'] = $this->sourceType()->value;
-            $this->documents->create($record);
-            $count++;
+
+            if ($sourceMetadata) {
+                $record['metadata'] = array_merge($record['metadata'] ?? [], $sourceMetadata->toArray());
+            }
+
+            try {
+                $status = $this->documents->import($record);
+                match ($status) {
+                    ImportStatus::Created => $created++,
+                    ImportStatus::Updated => $updated++,
+                    ImportStatus::Skipped => $skipped++,
+                };
+            } catch (\Throwable) {
+                $failures++;
+            }
         }
 
-        return $count;
+        return new ImportResult(
+            created: $created,
+            updated: $updated,
+            skipped: $skipped,
+            failures: $failures
+        );
     }
 
-    public function importFile(string $path): ImportResult
+    public function importFile(string $path, array $metadata = []): ImportResult
     {
-        $manifest = $this->startManifest($path, $this->sourceType()->value, basename($path));
+        $manifest = $this->startManifest($path, $this->sourceType()->value, basename($path), $metadata);
 
         try {
             $content = file_get_contents($path);
@@ -53,9 +79,8 @@ abstract class AbstractDocumentImporter implements DocumentImporterInterface
                 ];
             }
 
-            $count = $this->import($records);
+            $result = $this->import($records, $manifest->toSourceMetadata());
 
-            $result = new ImportResult(created: $count, skipped: 0, failures: 0);
             $this->finishManifest($manifest, $result);
 
             return $result;

@@ -19,6 +19,8 @@ interface KnowledgeDocumentRepositoryInterface
 
     public function delete(KnowledgeDocumentRecord $record): void;
 
+    public function findBySource(string $sourceType, string $sourceName, string $reference): ?KnowledgeDocumentRecord;
+
     /**
      * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, KnowledgeDocumentRecord>

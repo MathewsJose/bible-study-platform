@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Knowledge\Importers;
 
+use App\Domain\Knowledge\ValueObjects\SourceMetadata;
 use Illuminate\Database\Eloquent\Model;
 
 final class ImportManifest extends Model
@@ -21,6 +22,8 @@ final class ImportManifest extends Model
         'license',
         'license_url',
         'importer',
+        'language',
+        'rights_notes',
         'status',
         'total_records',
         'records_created',
@@ -41,4 +44,17 @@ final class ImportManifest extends Model
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
     ];
+
+    public function toSourceMetadata(): SourceMetadata
+    {
+        return new SourceMetadata(
+            sourceUrl: $this->source_url,
+            license: $this->license,
+            licenseUrl: $this->license_url,
+            importedFrom: $this->importer,
+            importedAt: $this->started_at?->toIso8601String(),
+            rightsNotes: $this->rights_notes,
+            language: $this->language ?? 'en',
+        );
+    }
 }

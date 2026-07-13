@@ -13,19 +13,14 @@ trait TracksImportManifests
         string $path,
         string $sourceType,
         string $sourceName,
-        ?string $sourceUrl = null,
-        ?string $license = null,
-        ?string $licenseUrl = null
+        array $extraAttributes = []
     ): ImportManifest
     {
-        return ImportManifest::query()->create([
+        return ImportManifest::query()->create(array_merge([
             'file_path' => $path,
             'checksum' => hash_file('sha256', $path) ?: '',
             'source_type' => $sourceType,
             'source_name' => $sourceName,
-            'source_url' => $sourceUrl,
-            'license' => $license,
-            'license_url' => $licenseUrl,
             'importer' => class_basename($this),
             'status' => 'running',
             'started_at' => now(),
@@ -34,7 +29,7 @@ trait TracksImportManifests
             'records_updated' => 0,
             'records_skipped' => 0,
             'records_failed' => 0,
-        ]);
+        ], $extraAttributes));
     }
 
     protected function finishManifest(ImportManifest $manifest, ImportResult $result): void

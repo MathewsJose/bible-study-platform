@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Infrastructure\Knowledge\Importers;
 
 use App\Application\Knowledge\DTOs\ImportResult;
+use App\Application\Knowledge\Services\KnowledgeDocumentService;
+use App\Domain\Knowledge\Enums\ImportStatus;
 use App\Domain\Knowledge\Enums\SourceType;
 use App\Domain\Knowledge\Enums\Tradition;
-use App\Infrastructure\Knowledge\Importers\ImportManifest;
-use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\DB;
+use App\Domain\Knowledge\ValueObjects\SourceMetadata;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 use JsonException;
 use Throwable;
 
@@ -23,13 +22,15 @@ final readonly class BibleImporter
 
     public const SOURCE_NAME = 'Bible';
 
+    public function __construct(private KnowledgeDocumentService $documents) {}
+
     /**
      * @throws JsonException
      * @throws ValidationException
      */
-    public function importFile(string $path): ImportResult
+    public function importFile(string $path, array $metadata = []): ImportResult
     {
-        $manifest = $this->startManifest($path, 'bible', self::SOURCE_NAME);
+        $manifest = $this->startManifest($path, 'bible', self::SOURCE_NAME, $metadata);
 
         try {
             $contents = file_get_contents($path);
@@ -52,9 +53,11 @@ final readonly class BibleImporter
                 'source_url' => $payload['source_url'] ?? null,
                 'license' => $payload['license'] ?? null,
                 'license_url' => $payload['license_url'] ?? null,
+                'rights_notes' => $payload['rights_notes'] ?? null,
+                'language' => $payload['language'] ?? 'en',
             ]);
 
-            $result = $this->import($payload, $path);
+            $result = $this->import($payload, $path, $manifest->toSourceMetadata());
 
             $this->finishManifest($manifest, $result);
 
@@ -71,61 +74,51 @@ final readonly class BibleImporter
      *
      * @throws ValidationException
      */
-    public function import(array $payload, ?string $path = null): ImportResult
+    public function import(array $payload, ?string $path = null, ?SourceMetadata $sourceMetadata = null): ImportResult
     {
         $validated = $this->validatePayload($payload);
         $book = (string) $validated['book'];
         $chapter = (int) $validated['chapter'];
 
         $imported = 0;
-        $skippedDuplicates = 0;
+        $updated = 0;
+        $skipped = 0;
         $failures = 0;
 
         /** @var list<array{verse: int, text: string}> $verses */
         $verses = $validated['verses'];
 
         foreach ($verses as $verse) {
-            $document = $this->documentPayload($book, $chapter, $verse);
+            $document = $this->documentPayload($book, $chapter, $verse, $sourceMetadata);
 
             try {
-                $created = DB::transaction(function () use ($document): bool {
-                    if ($this->documentExists($document)) {
-                        return false;
-                    }
+                $status = $this->documents->import($document);
 
-                    KnowledgeDocumentRecord::query()->create($document);
-
-                    return true;
-                });
-
-                if ($created) {
-                    $imported++;
-                } else {
-                    $skippedDuplicates++;
-                }
-            } catch (QueryException $exception) {
-                if ($this->isDuplicateKeyException($exception)) {
-                    $skippedDuplicates++;
-
-                    continue;
-                }
-
-                $failures++;
-                $this->logFailure($document, $exception);
+                match ($status) {
+                    ImportStatus::Created => $imported++,
+                    ImportStatus::Updated => $updated++,
+                    ImportStatus::Skipped => $skipped++,
+                };
             } catch (Throwable $exception) {
                 $failures++;
                 $this->logFailure($document, $exception);
             }
         }
 
-        $result = new ImportResult(created: $imported, skipped: $skippedDuplicates, failures: $failures);
+        $result = new ImportResult(
+            created: $imported,
+            updated: $updated,
+            skipped: $skipped,
+            failures: $failures
+        );
 
         Log::info('Bible import completed.', [
             'path' => $path,
             'book' => $book,
             'chapter' => $chapter,
             'imported' => $result->created,
-            'skipped_duplicates' => $result->skipped,
+            'updated' => $result->updated,
+            'skipped' => $result->skipped,
             'failures' => $result->failures,
         ]);
 
@@ -150,6 +143,8 @@ final readonly class BibleImporter
             'source_url' => ['nullable', 'string', 'url'],
             'license' => ['nullable', 'string'],
             'license_url' => ['nullable', 'string', 'url'],
+            'rights_notes' => ['nullable', 'string'],
+            'language' => ['nullable', 'string', 'max:20'],
         ])->validate();
 
         return $validated;
@@ -159,9 +154,19 @@ final readonly class BibleImporter
      * @param  array{verse: int, text: string}  $verse
      * @return array<string, mixed>
      */
-    private function documentPayload(string $book, int $chapter, array $verse): array
+    private function documentPayload(string $book, int $chapter, array $verse, ?SourceMetadata $sourceMetadata = null): array
     {
         $reference = "{$book} {$chapter}:{$verse['verse']}";
+
+        $metadata = [
+            'book' => $book,
+            'chapter' => $chapter,
+            'verse' => $verse['verse'],
+        ];
+
+        if ($sourceMetadata) {
+            $metadata = array_merge($metadata, $sourceMetadata->toArray());
+        }
 
         return [
             'source_type' => SourceType::BibleVerse->value,
@@ -170,29 +175,8 @@ final readonly class BibleImporter
             'title' => $reference,
             'content' => trim($verse['text']),
             'tradition' => Tradition::Catholic->value,
-            'metadata' => [
-                'book' => $book,
-                'chapter' => $chapter,
-                'verse' => $verse['verse'],
-            ],
+            'metadata' => $metadata,
         ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $document
-     */
-    private function documentExists(array $document): bool
-    {
-        return KnowledgeDocumentRecord::query()
-            ->where('source_type', $document['source_type'])
-            ->where('source_name', $document['source_name'])
-            ->where('reference', $document['reference'])
-            ->exists();
-    }
-
-    private function isDuplicateKeyException(QueryException $exception): bool
-    {
-        return in_array($exception->getCode(), ['23000', '23505'], true);
     }
 
     /**
