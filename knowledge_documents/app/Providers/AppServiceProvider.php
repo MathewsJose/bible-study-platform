@@ -9,6 +9,9 @@ use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Infrastructure\Knowledge\Embedding\DummyEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\OpenAIEmbeddingProvider;
 use App\Infrastructure\Knowledge\Persistence\EloquentKnowledgeDocumentRepository;
+use App\Infrastructure\Knowledge\Importers\BibleImporter;
+use App\Infrastructure\Knowledge\Importers\CatechismImporter;
+use App\Infrastructure\Knowledge\Importers\ChurchFatherImporter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        $this->app->singleton(BibleImporter::class);
+        $this->app->singleton(CatechismImporter::class);
+        $this->app->singleton(ChurchFatherImporter::class);
     }
 }

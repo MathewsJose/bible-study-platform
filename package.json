@@ -7,6 +7,8 @@
     "frontend:test": "npm --prefix frontend run test",
     "frontend:check": "npm --prefix frontend run check",
     "api:dev": "php api/artisan serve --host=127.0.0.1 --port=8000",
-    "api:test": "php api/artisan test"
+    "api:test": "php api/artisan test",
+    "knowledge:dev": "php knowledge_documents/artisan serve --host=127.0.0.1 --port=8001",
+    "knowledge:test": "php knowledge_documents/artisan test"
   }
 }

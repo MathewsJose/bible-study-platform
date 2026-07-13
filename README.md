@@ -6,6 +6,7 @@ The repository contains:
 
 - `frontend/` – Nuxt 4 single-page application for scripture reading, history, and teachings.
 - `api/` – Laravel backend implementing a clean, layered API for Bible text, historical context, and church teaching content.
+- `knowledge_documents/` – Specialized Laravel backend for theological document indexing and RAG support (PostgreSQL + pgvector).
 
 ## Architecture Overview
 
@@ -18,11 +19,12 @@ This project is intentionally organized as a monorepo with separate frontend and
 - Styling: Tailwind CSS v4
 - Purpose: present an uninterrupted Bible reading experience, selectable verses, and context panels for history and teaching notes.
 
-### Backend
+### Backend (Core & Knowledge)
 
 - Framework: Laravel 13
 - Language: PHP 8.5
-- Data: MongoDB-backed repositories
+- Core Data: MongoDB-backed repositories (verses, history)
+- Knowledge Data: PostgreSQL 17 + pgvector (theological docs, embeddings)
 - Pattern: Clean Architecture with Domain-Driven Design (DDD) boundaries
 
 The backend is intentionally structured as a DDD-friendly, layered API service:
@@ -31,6 +33,12 @@ The backend is intentionally structured as a DDD-friendly, layered API service:
 - `app/Application` contains use cases, DTOs, application services, and orchestration logic
 - `app/Domain` defines business entities, value objects, and repository contracts for Bible, history, and teaching domains
 - `app/Infrastructure` implements persistence adapters, MongoDB models, and repository implementations
+
+### Knowledge Service (`knowledge_documents/`)
+
+- Purpose: specialized indexing of theological documents, RAG support, and semantic search.
+- Tech: PostgreSQL 17 with `pgvector` for similarity search.
+- Integration: OpenAI for generating document embeddings.
 
 This architecture makes the backend easier to reason about, test, and extend:
 
@@ -46,7 +54,8 @@ The API is designed for a stable client contract and clean separation between bu
 - Root: Node.js / npm
 - Frontend: Nuxt 4, Vue 3, Pinia, Tailwind CSS, ofetch
 - Backend: Laravel 13, PHP 8.5, MongoDB, Sanctum installed for possible future auth
-- Infrastructure: Docker Compose with PHP-FPM, Nginx, and MongoDB
+- Knowledge Service: PostgreSQL 17, pgvector, OpenAI API
+- Infrastructure: Docker Compose with PHP-FPM, Nginx, MongoDB, and PostgreSQL
 
 ## Repository Layout
 
@@ -69,6 +78,11 @@ The API is designed for a stable client contract and clean separation between bu
 │   ├── tests/
 │   ├── nuxt.config.ts
 │   └── package.json
+├── knowledge_documents/ Specialized knowledge backend
+│   ├── app/            Cleanly layered application code
+│   ├── database/       PostgreSQL migrations
+│   ├── docker/
+│   └── tests/          Pest PHP tests
 ├── package.json        Root convenience scripts
 └── README.md           Project overview and guide
 ```
@@ -93,6 +107,16 @@ api/app/
 |   +-- Teachings/Persistence/Mongo/
 +-- Interfaces/
     +-- Http/
+
+knowledge_documents/app/
++-- Domain/
+|   +-- Knowledge/ (Entities, Enums, ValueObjects)
++-- Application/
+|   +-- Knowledge/ (Services, DTOs, Contracts)
++-- Infrastructure/
+|   +-- Knowledge/ (Persistence, Embedding, Importers)
++-- Presentation/
+    +-- Http/ (Controllers, Requests)
 ```
 
 ## Run and Develop Locally
@@ -100,9 +124,13 @@ api/app/
 ### Install dependencies
 
 ```bash
+# Root and Frontend
 npm install
 npm --prefix frontend install
+
+# Backend Services
 cd api && composer install
+cd ../knowledge_documents && composer install
 ```
 
 ### Frontend development
@@ -126,9 +154,9 @@ npm run api:test
 
 ## Docker Setup
 
-The backend includes Docker Compose support in `api/docker-compose.yml` and a PHP application image in `api/docker/Dockerfile`.
+Each backend service includes its own Docker Compose configuration.
 
-Example local startup:
+### Core API
 
 ```bash
 cd api
@@ -139,7 +167,22 @@ docker exec -it bible-app php artisan migrate --force
 docker exec -it bible-app php artisan db:seed
 ```
 
-The backend is then available through Nginx at `http://localhost`.
+### Knowledge Service
+
+```bash
+cd knowledge_documents
+docker-compose up -d
+docker exec -it knowledge_documents-app-1 composer install
+docker exec -it knowledge_documents-app-1 php artisan key:generate
+docker exec -it knowledge_documents-app-1 php artisan migrate --force
+```
+
+Note: Container names may vary depending on your Docker version. Check `docker ps` to verify.
+
+Availability:
+- **Core API**: Available at `http://localhost`
+- **Knowledge Service**: Available at `http://localhost:8080`
+- **PgAdmin**: Available at `http://localhost:5050` (for Knowledge Service)
 
 ## API Contract
 
@@ -194,6 +237,37 @@ GET /api/verse/{book}/{chapter}/{verse}
 
 This route is maintained for compatibility, but new clients should prefer the query-based endpoints above.
 
+### Knowledge Service Endpoints
+
+These endpoints are available on the Knowledge Service (default port `8080`).
+
+#### Search documents (Keyword)
+
+```http
+POST /api/documents/search
+```
+
+- `query`: string
+- `limit`: optional, integer
+
+#### Semantic search (AI-based)
+
+```http
+POST /api/documents/semantic-search
+```
+
+- `embedding`: array of floats
+- `limit`: optional, integer
+- `threshold`: optional, float
+
+#### Document management
+
+- `GET /api/documents`: List documents
+- `GET /api/documents/{id}`: Get document details
+- `POST /api/documents`: Create document
+- `PUT /api/documents/{id}`: Update document
+- `DELETE /api/documents/{id}`: Delete document
+
 ### Standard response envelope
 
 Success:
@@ -237,6 +311,8 @@ npm run frontend:test
 npm run frontend:check
 npm run api:dev
 npm run api:test
+npm run knowledge:dev
+npm run knowledge:test
 ```
 
 ### Frontend commands
@@ -251,9 +327,19 @@ npm run check
 npm run preview
 ```
 
-### Backend commands
+### Core API commands
 
 From `api/`:
+
+```bash
+composer install
+php artisan serve
+php artisan test
+```
+
+### Knowledge Service commands
+
+From `knowledge_documents/`:
 
 ```bash
 composer install
@@ -266,12 +352,11 @@ php artisan test
 - The backend design isolates HTTP and persistence adapters from domain rules.
 - The frontend separates UI state, selection orchestration, and API/service access.
 - The monorepo structure supports independent frontend and backend evolution while keeping shared project context in one workspace.
-- Search and advanced indexing were planned as an adapter layer, but the current implementation remains MongoDB-only.
+- Advanced search and indexing are implemented in the `knowledge_documents` service using `pgvector`.
 
 ## Future Opportunities
 
 - Add authenticated user bookmarks and cross-device sync
 - Introduce deeper route linking for book/chapter/verse state
 - Upgrade the API to support broader translation licensing workflows
-- Add Elasticsearch or search adapter support for fast textual search
 - Expand frontend studies with annotations, reading plans, and notes

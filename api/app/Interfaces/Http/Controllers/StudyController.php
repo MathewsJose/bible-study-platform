@@ -41,4 +41,21 @@ class StudyController extends Controller
 
         return ApiResponse::success($payload);
     }
+
+    public function showVerse(Request $request, string $book, string $chapter, string $verse): JsonResponse
+    {
+        $payload = $this->studyService->getStudyPayload(
+            language: strtolower((string) $request->query('language', config('bible.default_language', 'en'))),
+            version: strtolower((string) $request->query('version', config('bible.default_version', 'drb'))),
+            book: $book,
+            chapter: (int) $chapter,
+            verse: (int) $verse
+        );
+
+        if ($payload === null) {
+            return ApiResponse::error('Bible verse not found.', 404);
+        }
+
+        return ApiResponse::success($payload);
+    }
 }
