@@ -20,9 +20,10 @@ final readonly class SemanticSearchService
     ) {}
 
     /**
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, RankedKnowledgeDocumentData>
      */
-    public function search(string $query, int $limit, float $threshold, int $page): LengthAwarePaginator
+    public function search(string $query, int $limit, float $threshold, int $page, array $filters = []): LengthAwarePaginator
     {
         try {
             $embedding = $this->embeddings->embed($query);
@@ -32,7 +33,7 @@ final readonly class SemanticSearchService
 
         /** @var LengthAwarePaginator<int, RankedKnowledgeDocumentData> $results */
         $results = $this->documents
-            ->semanticSearch($embedding, $limit, $threshold, $page)
+            ->semanticSearch($embedding, $limit, $threshold, $page, $filters)
             ->through(static fn (array $result): RankedKnowledgeDocumentData => new RankedKnowledgeDocumentData(
                 document: KnowledgeDocumentData::fromRecord($result['record']),
                 score: $result['score'],

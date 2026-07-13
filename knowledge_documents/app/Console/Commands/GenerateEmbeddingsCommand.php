@@ -9,17 +9,35 @@ use Illuminate\Console\Command;
 
 final class GenerateEmbeddingsCommand extends Command
 {
-    protected $signature = 'embeddings:generate';
+    protected $signature = 'embeddings:generate 
+                            {--retry-failed : Process documents with failed status as well}
+                            {--limit= : Limit the number of documents to process}
+                            {--source-type= : Filter by source type}
+                            {--source-name= : Filter by source name}
+                            {--dry-run : Only show how many documents would be processed}';
 
-    protected $description = 'Generate embeddings for knowledge documents that do not have vectors yet.';
+    protected $description = 'Generate embeddings for knowledge documents that need them.';
 
     public function handle(EmbeddingGenerationService $embeddings): int
     {
-        $pending = $embeddings->pendingCount();
+        $options = [
+            'retryFailed' => $this->option('retry-failed'),
+            'limit' => $this->option('limit'),
+            'sourceType' => $this->option('source-type'),
+            'sourceName' => $this->option('source-name'),
+            'dryRun' => $this->option('dry-run'),
+        ];
+
+        $pending = $embeddings->pendingCount($options);
 
         if ($pending === 0) {
             $this->info('No knowledge documents need embeddings.');
 
+            return self::SUCCESS;
+        }
+
+        if ($options['dryRun']) {
+            $this->info("Dry run: {$pending} knowledge documents would be processed.");
             return self::SUCCESS;
         }
 
@@ -28,7 +46,7 @@ final class GenerateEmbeddingsCommand extends Command
         $bar = $this->output->createProgressBar($pending);
         $bar->start();
 
-        $result = $embeddings->generate(static function (int $count) use ($bar): void {
+        $result = $embeddings->generate($options, static function (int $count) use ($bar): void {
             $bar->advance($count);
         });
 

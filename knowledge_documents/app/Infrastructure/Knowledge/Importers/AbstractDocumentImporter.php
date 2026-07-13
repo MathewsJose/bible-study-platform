@@ -15,7 +15,7 @@ abstract class AbstractDocumentImporter implements DocumentImporterInterface
 {
     use TracksImportManifests;
 
-    public function __construct(private readonly KnowledgeDocumentService $documents) {}
+    public function __construct(protected readonly KnowledgeDocumentService $documents) {}
 
     abstract protected function sourceType(): SourceType;
 

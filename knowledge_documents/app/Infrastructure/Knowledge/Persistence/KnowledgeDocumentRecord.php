@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Knowledge\Persistence;
 
+use App\Domain\Knowledge\Enums\EmbeddingStatus;
 use Database\Factories\KnowledgeDocumentRecordFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,6 +21,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $content
  * @property array<string, mixed> $metadata
  * @property list<float>|string|null $embedding
+ * @property string $embedding_status
+ * @property string|null $embedding_model
+ * @property \DateTimeImmutable|null $embedded_at
+ * @property string|null $embedding_error
  */
 final class KnowledgeDocumentRecord extends Model
 {
@@ -44,6 +49,10 @@ final class KnowledgeDocumentRecord extends Model
         'content',
         'metadata',
         'embedding',
+        'embedding_status',
+        'embedding_model',
+        'embedded_at',
+        'embedding_error',
     ];
 
     /** @return array<string, string> */
@@ -51,6 +60,8 @@ final class KnowledgeDocumentRecord extends Model
     {
         return [
             'metadata' => 'array',
+            'embedding_status' => EmbeddingStatus::class,
+            'embedded_at' => 'immutable_datetime',
         ];
     }
 

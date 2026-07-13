@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Application\Knowledge\DTOs\ImportResult;
 use App\Infrastructure\Knowledge\Importers\BibleImporter;
+use App\Infrastructure\Knowledge\Importers\DouayRheimsImporter;
 use App\Infrastructure\Knowledge\Importers\CatechismImporter;
 use App\Infrastructure\Knowledge\Importers\ChurchFatherImporter;
 use App\Infrastructure\Knowledge\Importers\ImportManifest;
@@ -32,6 +33,7 @@ final class KnowledgeImportCommand extends Command
 
     public function __construct(
         private readonly BibleImporter $bibleImporter,
+        private readonly DouayRheimsImporter $douayRheimsImporter,
         private readonly CatechismImporter $catechismImporter,
         private readonly ChurchFatherImporter $churchFatherImporter,
     ) {
@@ -39,6 +41,7 @@ final class KnowledgeImportCommand extends Command
 
         $this->importers = [
             'bible' => fn (string $path, array $metadata = []): ImportResult => $this->bibleImporter->importFile($path, $metadata),
+            'douay_rheims' => fn (string $path, array $metadata = []): ImportResult => $this->douayRheimsImporter->importFile($path, $metadata),
             'catechism' => fn (string $path, array $metadata = []): ImportResult => $this->catechismImporter->importFile($path, $metadata),
             'church_father' => fn (string $path, array $metadata = []): ImportResult => $this->churchFatherImporter->importFile($path, $metadata),
         ];
@@ -136,6 +139,19 @@ final class KnowledgeImportCommand extends Command
     {
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         if ($extension === 'json') {
+            $lowerPath = strtolower($path);
+            if (str_contains($lowerPath, 'douay-rheims')) {
+                return 'douay_rheims';
+            }
+
+            if (str_contains($lowerPath, 'catechism')) {
+                return 'catechism';
+            }
+
+            if (str_contains($lowerPath, 'church-father') || str_contains($lowerPath, 'church_father')) {
+                return 'church_father';
+            }
+
             return 'bible';
         }
 

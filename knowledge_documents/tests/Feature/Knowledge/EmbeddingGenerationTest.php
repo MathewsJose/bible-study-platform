@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
+use App\Domain\Knowledge\Enums\EmbeddingStatus;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
@@ -30,6 +31,11 @@ final class RecordingEmbeddingProvider implements EmbeddingProviderInterface
             $texts,
         );
     }
+
+    public function identifier(): string
+    {
+        return 'test-model';
+    }
 }
 
 it('generates embeddings for pending knowledge documents in batches of 100', function (): void {
@@ -47,6 +53,7 @@ it('generates embeddings for pending knowledge documents in batches of 100', fun
         'reference' => 'CCC 999',
         'content' => 'Already embedded',
         'embedding' => json_encode([0.1, 0.2, 0.3], JSON_THROW_ON_ERROR),
+        'embedding_status' => EmbeddingStatus::Ready,
     ]);
 
     $status = Artisan::call('embeddings:generate');

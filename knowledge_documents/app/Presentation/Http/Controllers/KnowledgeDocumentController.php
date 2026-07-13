@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Presentation\Http\Controllers;
 
+use App\Application\Knowledge\DTOs\HybridRankedKnowledgeDocumentData;
 use App\Application\Knowledge\DTOs\KnowledgeDocumentData;
 use App\Application\Knowledge\DTOs\RankedKnowledgeDocumentData;
 use App\Application\Knowledge\Exceptions\EmbeddingProviderUnavailableException;
+use App\Application\Knowledge\Services\HybridSearchService;
 use App\Application\Knowledge\Services\KnowledgeDocumentService;
 use App\Application\Knowledge\Services\SearchKnowledgeDocumentsService;
 use App\Application\Knowledge\Services\SemanticSearchService;
@@ -25,6 +27,7 @@ final class KnowledgeDocumentController extends Controller
         private readonly KnowledgeDocumentService $documents,
         private readonly SearchKnowledgeDocumentsService $search,
         private readonly SemanticSearchService $semanticSearch,
+        private readonly HybridSearchService $hybridSearch,
     ) {}
 
     public function index(ListKnowledgeDocumentsRequest $request): JsonResponse
@@ -72,9 +75,12 @@ final class KnowledgeDocumentController extends Controller
 
     public function fullTextSearch(SearchKnowledgeDocumentsRequest $request): JsonResponse
     {
+        $filters = $request->safe()->only(['source_type', 'source_name', 'tradition', 'book', 'chapter']);
+
         $results = $this->search->fullText(
             query: (string) $request->string('query'),
             limit: (int) $request->integer('limit', 10),
+            filters: $filters,
         );
 
         return response()->json([
@@ -90,6 +96,7 @@ final class KnowledgeDocumentController extends Controller
         $limit = (int) $request->integer('limit', (int) config('knowledge.semantic_search.limit', 10));
         $threshold = (float) ($request->validated('score_threshold') ?? config('knowledge.semantic_search.score_threshold', 0.0));
         $page = (int) $request->integer('page', 1);
+        $filters = $request->safe()->only(['source_type', 'source_name', 'tradition', 'book', 'chapter']);
 
         try {
             $results = $this->semanticSearch->search(
@@ -97,6 +104,7 @@ final class KnowledgeDocumentController extends Controller
                 limit: $limit,
                 threshold: $threshold,
                 page: $page,
+                filters: $filters,
             );
         } catch (EmbeddingProviderUnavailableException $exception) {
             Log::warning('Semantic search embedding provider unavailable.', [
@@ -122,6 +130,37 @@ final class KnowledgeDocumentController extends Controller
                 'total' => $results->total(),
                 'score_threshold' => $threshold,
             ],
+        ]);
+    }
+
+    public function hybridSearch(SearchKnowledgeDocumentsRequest $request): JsonResponse
+    {
+        $limit = (int) $request->integer('limit', (int) config('knowledge.semantic_search.limit', 10));
+        $threshold = (float) ($request->validated('score_threshold') ?? config('knowledge.semantic_search.score_threshold', 0.0));
+        $filters = $request->safe()->only(['source_type', 'source_name', 'tradition', 'book', 'chapter']);
+
+        try {
+            $results = $this->hybridSearch->search(
+                query: (string) $request->string('query'),
+                limit: $limit,
+                threshold: $threshold,
+                filters: $filters,
+            );
+        } catch (EmbeddingProviderUnavailableException $exception) {
+            Log::warning('Hybrid search embedding provider unavailable.', [
+                'exception' => $exception,
+            ]);
+
+            return response()->json([
+                'message' => 'Hybrid search is unavailable because embeddings are not configured.',
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+
+        return response()->json([
+            'data' => array_map(
+                static fn (HybridRankedKnowledgeDocumentData $result): array => $result->toArray(),
+                $results,
+            ),
         ]);
     }
 }

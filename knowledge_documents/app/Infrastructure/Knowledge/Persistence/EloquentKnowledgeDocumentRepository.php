@@ -59,19 +59,21 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
             ->paginate($perPage);
     }
 
-    public function fullTextSearch(string $query, int $limit): array
+    public function fullTextSearch(string $query, int $limit, array $filters = []): array
     {
         if (DB::getDriverName() !== 'pgsql') {
-            return array_values(KnowledgeDocumentRecord::query()
-                ->where('title', 'like', "%{$query}%")
-                ->orWhere('content', 'like', "%{$query}%")
+            return array_values($this->applySearchFilters(KnowledgeDocumentRecord::query(), $filters)
+                ->where(function (Builder $queryBuilder) use ($query) {
+                    $queryBuilder->where('title', 'like', "%{$query}%")
+                        ->orWhere('content', 'like', "%{$query}%");
+                })
                 ->limit($limit)
                 ->get()
                 ->map(fn (KnowledgeDocumentRecord $record): array => ['record' => $record, 'score' => 1.0])
                 ->all());
         }
 
-        return array_values(KnowledgeDocumentRecord::query()
+        return array_values($this->applySearchFilters(KnowledgeDocumentRecord::query(), $filters)
             ->select('knowledge_documents.*')
             ->selectRaw("ts_rank(to_tsvector('english', title || ' ' || content || ' ' || reference), plainto_tsquery('english', ?)) as rank", [$query])
             ->whereRaw("to_tsvector('english', title || ' ' || content || ' ' || reference) @@ plainto_tsquery('english', ?)", [$query])
@@ -82,7 +84,7 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
             ->all());
     }
 
-    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page): LengthAwarePaginator
+    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page, array $filters = []): LengthAwarePaginator
     {
         if (DB::getDriverName() !== 'pgsql') {
             return new LengthAwarePaginator([], 0, $limit, $page);
@@ -92,7 +94,7 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
         $similarityExpression = '1 - (embedding <=> ?::vector)';
 
         /** @var LengthAwarePaginator<int, KnowledgeDocumentRecord> $results */
-        $results = KnowledgeDocumentRecord::query()
+        $results = $this->applySearchFilters(KnowledgeDocumentRecord::query(), $filters)
             ->select('knowledge_documents.*')
             ->selectRaw("{$similarityExpression} as similarity", [$vector])
             ->whereNotNull('embedding')
@@ -109,6 +111,16 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
         );
 
         return $mapped;
+    }
+
+    private function applySearchFilters(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when($filters['source_type'] ?? null, fn (Builder $q, string $v) => $q->where('source_type', $v))
+            ->when($filters['source_name'] ?? null, fn (Builder $q, string $v) => $q->where('source_name', $v))
+            ->when($filters['tradition'] ?? null, fn (Builder $q, string $v) => $q->where('tradition', $v))
+            ->when($filters['book'] ?? null, fn (Builder $q, string $v) => $q->where('metadata->book', $v))
+            ->when($filters['chapter'] ?? null, fn (Builder $q, string $v) => $q->where('metadata->chapter', (string) $v));
     }
 
     /**

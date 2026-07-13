@@ -16,4 +16,9 @@ interface EmbeddingProviderInterface
      * @return list<list<float>>
      */
     public function embedMany(array $texts): array;
+
+    /**
+     * Get the name of the embedding model being used.
+     */
+    public function identifier(): string;
 }

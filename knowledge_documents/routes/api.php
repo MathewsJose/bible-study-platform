@@ -10,6 +10,7 @@ Route::prefix('documents')->group(function (): void {
     Route::post('/', [KnowledgeDocumentController::class, 'store']);
     Route::post('/search', [KnowledgeDocumentController::class, 'fullTextSearch']);
     Route::post('/semantic-search', [KnowledgeDocumentController::class, 'semanticSearch']);
+    Route::post('/hybrid-search', [KnowledgeDocumentController::class, 'hybridSearch']);
     Route::get('/{id}', [KnowledgeDocumentController::class, 'show']);
     Route::put('/{id}', [KnowledgeDocumentController::class, 'update']);
     Route::delete('/{id}', [KnowledgeDocumentController::class, 'destroy']);

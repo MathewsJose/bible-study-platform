@@ -25,4 +25,9 @@ final class DummyEmbeddingProvider implements EmbeddingProviderInterface
     {
         return array_map(fn (string $text): array => $this->embed($text), $texts);
     }
+
+    public function identifier(): string
+    {
+        return 'dummy-model';
+    }
 }

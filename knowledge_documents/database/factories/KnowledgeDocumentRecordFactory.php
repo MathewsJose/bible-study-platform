@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Domain\Knowledge\Enums\EmbeddingStatus;
 use App\Domain\Knowledge\Enums\SourceType;
 use App\Domain\Knowledge\Enums\Tradition;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
@@ -27,6 +28,7 @@ final class KnowledgeDocumentRecordFactory extends Factory
             'title' => $this->faker->sentence(4),
             'content' => $this->faker->paragraphs(3, true),
             'metadata' => ['language' => 'en'],
+            'embedding_status' => EmbeddingStatus::Pending,
         ];
     }
 }

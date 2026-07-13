@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Knowledge\DTOs;
 
+use App\Domain\Knowledge\Enums\EmbeddingStatus;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 
 final readonly class KnowledgeDocumentData
@@ -22,6 +23,10 @@ final readonly class KnowledgeDocumentData
         public array $metadata,
         public string $createdAt,
         public string $updatedAt,
+        public string $embeddingStatus,
+        public ?string $embeddingModel = null,
+        public ?string $embeddedAt = null,
+        public ?string $embeddingError = null,
     ) {}
 
     public static function fromRecord(KnowledgeDocumentRecord $record): self
@@ -37,6 +42,10 @@ final readonly class KnowledgeDocumentData
             metadata: $record->metadata,
             createdAt: (string) $record->created_at?->toJSON(),
             updatedAt: (string) $record->updated_at?->toJSON(),
+            embeddingStatus: ($record->embedding_status ?? EmbeddingStatus::Pending)->value,
+            embeddingModel: $record->embedding_model,
+            embeddedAt: $record->embedded_at?->toJSON(),
+            embeddingError: $record->embedding_error,
         );
     }
 
@@ -54,6 +63,10 @@ final readonly class KnowledgeDocumentData
             'metadata' => $this->metadata,
             'created_at' => $this->createdAt,
             'updated_at' => $this->updatedAt,
+            'embedding_status' => $this->embeddingStatus,
+            'embedding_model' => $this->embeddingModel,
+            'embedded_at' => $this->embeddedAt,
+            'embedding_error' => $this->embeddingError,
         ];
     }
 }

@@ -90,10 +90,13 @@ SQLite-compatible fallbacks exist only so the automated test suite can run quick
 The import boundary starts with `DocumentImporterInterface` and concrete importers:
 
 - `BibleImporter`
+- `DouayRheimsImporter`
 - `CatechismImporter`
 - `ChurchFatherImporter`
 
 They share `AbstractDocumentImporter`, which keeps ingestion extensible while still relying on the same application service used by the API.
+
+Detailed instructions for the import workflow, including file formats and the Douay-Rheims Bible import, can be found in [docs/import-workflow.md](docs/import-workflow.md).
 
 ## Quality Commands
 

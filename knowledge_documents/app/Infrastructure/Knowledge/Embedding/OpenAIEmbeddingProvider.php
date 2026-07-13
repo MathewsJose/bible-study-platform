@@ -92,4 +92,9 @@ final readonly class OpenAIEmbeddingProvider implements EmbeddingProviderInterfa
 
         return $embeddings;
     }
+
+    public function identifier(): string
+    {
+        return (string) config('services.openai.embedding_model');
+    }
 }

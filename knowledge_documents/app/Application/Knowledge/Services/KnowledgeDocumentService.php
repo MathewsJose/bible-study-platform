@@ -6,8 +6,10 @@ namespace App\Application\Knowledge\Services;
 
 use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Application\Knowledge\DTOs\KnowledgeDocumentData;
+use App\Domain\Knowledge\Enums\EmbeddingStatus;
 use App\Domain\Knowledge\Enums\ImportStatus;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
+use DateTimeImmutable;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -18,7 +20,7 @@ final readonly class KnowledgeDocumentService
     /** @param array<string, mixed> $data */
     public function create(array $data): KnowledgeDocumentData
     {
-        return KnowledgeDocumentData::fromRecord($this->documents->create($data));
+        return KnowledgeDocumentData::fromRecord($this->documents->create($this->applyEmbeddingStatus($data)));
     }
 
     /** @param array<string, mixed> $data */
@@ -31,18 +33,40 @@ final readonly class KnowledgeDocumentService
         );
 
         if (! $existing) {
-            $this->documents->create($data);
+            $this->documents->create($this->applyEmbeddingStatus($data));
 
             return ImportStatus::Created;
         }
 
         if ($this->isDifferent($existing, $data)) {
-            $this->documents->update($existing, $data);
+            $this->documents->update($existing, $this->applyEmbeddingStatus($data, $existing));
 
             return ImportStatus::Updated;
         }
 
         return ImportStatus::Skipped;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function applyEmbeddingStatus(array $data, ?KnowledgeDocumentRecord $existing = null): array
+    {
+        if (isset($data['embedding']) && ! empty($data['embedding'])) {
+            $data['embedding_status'] = EmbeddingStatus::Ready;
+            $data['embedded_at'] = $data['embedded_at'] ?? new DateTimeImmutable();
+        } elseif (! isset($data['embedding_status'])) {
+            if ($existing === null) {
+                $data['embedding_status'] = EmbeddingStatus::Pending;
+            } elseif ($this->isDifferent($existing, $data)) {
+                $data['embedding_status'] = EmbeddingStatus::Pending;
+                $data['embedding'] = null;
+                $data['embedded_at'] = null;
+            }
+        }
+
+        return $data;
     }
 
     private function isDifferent(KnowledgeDocumentRecord $record, array $data): bool
@@ -74,7 +98,7 @@ final readonly class KnowledgeDocumentService
     {
         $record = $this->documents->find($id) ?? throw new NotFoundHttpException('Knowledge document not found.');
 
-        return KnowledgeDocumentData::fromRecord($this->documents->update($record, $data));
+        return KnowledgeDocumentData::fromRecord($this->documents->update($record, $this->applyEmbeddingStatus($data, $record)));
     }
 
     public function delete(string $id): void

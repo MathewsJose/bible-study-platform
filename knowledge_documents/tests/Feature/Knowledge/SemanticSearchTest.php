@@ -26,6 +26,11 @@ final class SemanticSearchEmbeddingProvider implements EmbeddingProviderInterfac
     {
         return array_map(fn (string $text): array => $this->embed($text), $texts);
     }
+
+    public function identifier(): string
+    {
+        return 'test-model';
+    }
 }
 
 final class FailingSemanticSearchEmbeddingProvider implements EmbeddingProviderInterface
@@ -42,6 +47,11 @@ final class FailingSemanticSearchEmbeddingProvider implements EmbeddingProviderI
     {
         throw new RuntimeException('OPENAI_API_KEY is not configured.');
     }
+
+    public function identifier(): string
+    {
+        return 'failing-model';
+    }
 }
 
 final class SemanticSearchRepository implements KnowledgeDocumentRepositoryInterface
@@ -57,6 +67,9 @@ final class SemanticSearchRepository implements KnowledgeDocumentRepositoryInter
     public ?float $threshold = null;
 
     public ?int $page = null;
+
+    /** @var array<string, mixed> */
+    public array $filters = [];
 
     public function create(array $data): KnowledgeDocumentRecord
     {
@@ -94,17 +107,20 @@ final class SemanticSearchRepository implements KnowledgeDocumentRepositoryInter
         return new LengthAwarePaginator([], 0, $perPage);
     }
 
-    public function fullTextSearch(string $query, int $limit): array
+    public function fullTextSearch(string $query, int $limit, array $filters = []): array
     {
+        $this->filters = $filters;
+
         return [];
     }
 
-    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page): LengthAwarePaginator
+    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page, array $filters = []): LengthAwarePaginator
     {
         $this->embedding = $embedding;
         $this->limit = $limit;
         $this->threshold = $threshold;
         $this->page = $page;
+        $this->filters = $filters;
 
         $filtered = array_values(array_filter(
             $this->rankedResults,

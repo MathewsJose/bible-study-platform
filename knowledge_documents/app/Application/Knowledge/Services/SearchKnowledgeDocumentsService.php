@@ -13,16 +13,17 @@ final readonly class SearchKnowledgeDocumentsService
     public function __construct(private KnowledgeDocumentRepositoryInterface $documents) {}
 
     /**
+     * @param  array<string, mixed>  $filters
      * @return list<RankedKnowledgeDocumentData>
      */
-    public function fullText(string $query, int $limit): array
+    public function fullText(string $query, int $limit, array $filters = []): array
     {
         return array_map(
             static fn (array $result): RankedKnowledgeDocumentData => new RankedKnowledgeDocumentData(
                 document: KnowledgeDocumentData::fromRecord($result['record']),
                 score: $result['score'],
             ),
-            $this->documents->fullTextSearch($query, $limit),
+            $this->documents->fullTextSearch($query, $limit, $filters),
         );
     }
 }

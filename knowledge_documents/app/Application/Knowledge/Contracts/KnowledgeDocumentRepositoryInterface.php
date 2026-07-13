@@ -28,13 +28,15 @@ interface KnowledgeDocumentRepositoryInterface
     public function paginate(array $filters, int $perPage): LengthAwarePaginator;
 
     /**
+     * @param  array<string, mixed>  $filters
      * @return list<array{record: KnowledgeDocumentRecord, score: float}>
      */
-    public function fullTextSearch(string $query, int $limit): array;
+    public function fullTextSearch(string $query, int $limit, array $filters = []): array;
 
     /**
      * @param  list<float>  $embedding
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, array{record: KnowledgeDocumentRecord, score: float}>
      */
-    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page): LengthAwarePaginator;
+    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page, array $filters = []): LengthAwarePaginator;
 }

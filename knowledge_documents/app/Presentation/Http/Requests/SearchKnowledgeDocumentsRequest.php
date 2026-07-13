@@ -21,6 +21,11 @@ final class SearchKnowledgeDocumentsRequest extends FormRequest
             'limit' => ['sometimes', 'integer', 'min:1', 'max:'.((int) config('knowledge.semantic_search.max_limit', 50))],
             'score_threshold' => ['sometimes', 'numeric', 'min:0', 'max:1'],
             'page' => ['sometimes', 'integer', 'min:1'],
+            'source_type' => ['sometimes', 'string'],
+            'source_name' => ['sometimes', 'string'],
+            'tradition' => ['sometimes', 'string'],
+            'book' => ['sometimes', 'string'],
+            'chapter' => ['sometimes', 'string'],
         ];
     }
 }
