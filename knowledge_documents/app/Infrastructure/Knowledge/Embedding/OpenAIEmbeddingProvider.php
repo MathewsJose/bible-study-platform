@@ -36,8 +36,8 @@ final readonly class OpenAIEmbeddingProvider implements EmbeddingProviderInterfa
             return [];
         }
 
-        $apiKey = (string) config('services.openai.api_key');
-        $model = (string) config('services.openai.embedding_model');
+        $apiKey = (string) config('embeddings.openai.api_key');
+        $model = (string) config('embeddings.model');
 
         if ($apiKey === '') {
             throw new RuntimeException('OPENAI_API_KEY is not configured.');
@@ -52,7 +52,7 @@ final readonly class OpenAIEmbeddingProvider implements EmbeddingProviderInterfa
             'input' => $texts,
         ];
 
-        $dimensions = config('services.openai.embedding_dimensions');
+        $dimensions = config('embeddings.dimensions');
 
         if (is_int($dimensions)) {
             $payload['dimensions'] = $dimensions;
@@ -60,13 +60,15 @@ final readonly class OpenAIEmbeddingProvider implements EmbeddingProviderInterfa
 
         $response = $this->http
             ->retry(
-                (int) config('services.openai.retry_attempts', 3),
-                (int) config('services.openai.retry_sleep_ms', 200),
+                (int) config('embeddings.retry_attempts', 3),
+                (int) config('embeddings.retry_sleep_ms', 200),
             )
+            ->timeout((int) config('embeddings.timeout', 30))
+            ->connectTimeout(min(10, (int) config('embeddings.timeout', 30)))
             ->withToken($apiKey)
             ->acceptJson()
             ->asJson()
-            ->post((string) config('services.openai.embeddings_url'), $payload)
+            ->post((string) config('embeddings.openai.url'), $payload)
             ->throw()
             ->json('data');
 
@@ -95,6 +97,6 @@ final readonly class OpenAIEmbeddingProvider implements EmbeddingProviderInterfa
 
     public function identifier(): string
     {
-        return (string) config('services.openai.embedding_model');
+        return (string) config('embeddings.model');
     }
 }

@@ -29,8 +29,7 @@ final readonly class HybridSearchService
 
         $fullTextResults = $this->fullTextSearch->fullText($query, $fetchLimit, $filters);
         
-        $semanticPaginator = $this->semanticSearch->search($query, $fetchLimit, $threshold, 1, $filters);
-        $semanticResults = $semanticPaginator->items();
+        $semanticResults = $this->semanticSearch->search($query, $fetchLimit, $threshold, $filters);
 
         $weights = Config::get('knowledge.hybrid_search.weights');
         $prioritySources = Config::get('knowledge.hybrid_search.priority_sources', []);

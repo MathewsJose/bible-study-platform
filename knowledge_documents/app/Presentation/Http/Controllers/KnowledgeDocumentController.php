@@ -93,17 +93,15 @@ final class KnowledgeDocumentController extends Controller
 
     public function semanticSearch(SearchKnowledgeDocumentsRequest $request): JsonResponse
     {
-        $limit = (int) $request->integer('limit', (int) config('knowledge.semantic_search.limit', 10));
+        $topK = (int) ($request->validated('top_k') ?? $request->integer('limit', (int) config('knowledge.semantic_search.limit', 10)));
         $threshold = (float) ($request->validated('score_threshold') ?? config('knowledge.semantic_search.score_threshold', 0.0));
-        $page = (int) $request->integer('page', 1);
-        $filters = $request->safe()->only(['source_type', 'source_name', 'tradition', 'book', 'chapter']);
+        $filters = $request->safe()->only(['source_type', 'source_types', 'source_name', 'tradition']);
 
         try {
             $results = $this->semanticSearch->search(
                 query: (string) $request->string('query'),
-                limit: $limit,
+                topK: $topK,
                 threshold: $threshold,
-                page: $page,
                 filters: $filters,
             );
         } catch (EmbeddingProviderUnavailableException $exception) {
@@ -117,17 +115,17 @@ final class KnowledgeDocumentController extends Controller
         }
 
         return response()->json([
-            'results' => $results->getCollection()
-                ->map(static fn (RankedKnowledgeDocumentData $result): array => [
+            'results' => array_values(array_map(
+                static fn (RankedKnowledgeDocumentData $result): array => [
                     'reference' => $result->document->reference,
                     'score' => $result->score,
-                ])
-                ->values(),
+                    'title' => $result->document->title,
+                ],
+                $results,
+            )),
             'meta' => [
-                'current_page' => $results->currentPage(),
-                'last_page' => $results->lastPage(),
-                'limit' => $results->perPage(),
-                'total' => $results->total(),
+                'top_k' => $topK,
+                'total' => count($results),
                 'score_threshold' => $threshold,
             ],
         ]);

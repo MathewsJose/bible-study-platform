@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Knowledge;
 
+use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
 use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Domain\Knowledge\Enums\SourceType;
@@ -88,31 +89,32 @@ class SearchFilterTest extends TestCase
 
     public function test_semantic_search_applies_filters(): void
     {
+        config()->set('embeddings.dimensions', 1);
+
         $embeddingProvider = new class implements EmbeddingProviderInterface {
             public function embed(string $text): array { return [0.1]; }
             public function embedMany(array $texts): array { return [[0.1]]; }
             public function identifier(): string { return 'test'; }
         };
 
-        $mockRepo = \Mockery::mock(KnowledgeDocumentRepositoryInterface::class);
-        app()->instance(KnowledgeDocumentRepositoryInterface::class, $mockRepo);
+        $mockRepo = \Mockery::mock(EmbeddingRepositoryInterface::class);
+        app()->instance(EmbeddingRepositoryInterface::class, $mockRepo);
         app()->instance(EmbeddingProviderInterface::class, $embeddingProvider);
 
         $filters = [
-            'source_type' => SourceType::BibleVerse->value,
+            'source_types' => [SourceType::BibleVerse->value],
             'tradition' => Tradition::Catholic->value,
-            'book' => 'Matthew',
-            'chapter' => 5,
             'source_name' => 'Douay-Rheims',
         ];
 
         $mockRepo->shouldReceive('semanticSearch')
             ->once()
-            ->with(\Mockery::any(), \Mockery::any(), \Mockery::any(), \Mockery::any(), $filters)
-            ->andReturn(new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10));
+            ->with(\Mockery::any(), 10, \Mockery::any(), $filters)
+            ->andReturn([]);
 
         $this->postJson('/api/documents/semantic-search', array_merge([
             'query' => 'Blessed are the poor in spirit',
+            'top_k' => 10,
         ], $filters))
             ->assertOk();
     }

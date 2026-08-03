@@ -12,8 +12,9 @@ final class DummyEmbeddingProvider implements EmbeddingProviderInterface
     {
         $hash = hash('sha256', mb_strtolower(trim($text)), true);
         $values = [];
+        $dimensions = (int) config('embeddings.dimensions', 1536);
 
-        for ($index = 0; $index < 1536; $index++) {
+        for ($index = 0; $index < $dimensions; $index++) {
             $byte = ord($hash[$index % strlen($hash)]);
             $values[] = round(($byte / 127.5) - 1.0, 6);
         }

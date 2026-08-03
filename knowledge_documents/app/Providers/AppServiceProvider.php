@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
 use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Infrastructure\Knowledge\Embedding\DummyEmbeddingProvider;
+use App\Infrastructure\Knowledge\Embedding\NullEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\OpenAIEmbeddingProvider;
+use App\Infrastructure\Knowledge\Persistence\EloquentEmbeddingRepository;
 use App\Infrastructure\Knowledge\Persistence\EloquentKnowledgeDocumentRepository;
 use App\Infrastructure\Knowledge\Importers\BibleImporter;
 use App\Infrastructure\Knowledge\Importers\CatechismImporter;
@@ -22,9 +25,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(KnowledgeDocumentRepositoryInterface::class, EloquentKnowledgeDocumentRepository::class);
-        $this->app->bind(EmbeddingProviderInterface::class, config('services.openai.embedding_provider') === 'dummy'
-            ? DummyEmbeddingProvider::class
-            : OpenAIEmbeddingProvider::class);
+        $this->app->bind(EmbeddingRepositoryInterface::class, EloquentEmbeddingRepository::class);
+        $this->app->bind(EmbeddingProviderInterface::class, $this->embeddingProviderClass());
     }
 
     /**
@@ -35,5 +37,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(BibleImporter::class);
         $this->app->singleton(CatechismImporter::class);
         $this->app->singleton(ChurchFatherImporter::class);
+    }
+
+    private function embeddingProviderClass(): string
+    {
+        return match (config('embeddings.provider', 'null')) {
+            'openai' => OpenAIEmbeddingProvider::class,
+            'dummy' => DummyEmbeddingProvider::class,
+            default => NullEmbeddingProvider::class,
+        };
     }
 }

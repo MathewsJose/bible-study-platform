@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
-use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
+use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
+use App\Application\Knowledge\Exceptions\InvalidEmbeddingVectorException;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use function Pest\Laravel\postJson;
 
 final class SemanticSearchEmbeddingProvider implements EmbeddingProviderInterface
@@ -54,7 +55,28 @@ final class FailingSemanticSearchEmbeddingProvider implements EmbeddingProviderI
     }
 }
 
-final class SemanticSearchRepository implements KnowledgeDocumentRepositoryInterface
+final class EmptySemanticSearchEmbeddingProvider implements EmbeddingProviderInterface
+{
+    /**
+     * @return list<float>
+     */
+    public function embed(string $text): array
+    {
+        return [];
+    }
+
+    public function embedMany(array $texts): array
+    {
+        return array_map(fn (string $text): array => $this->embed($text), $texts);
+    }
+
+    public function identifier(): string
+    {
+        return 'empty-model';
+    }
+}
+
+final class SemanticSearchRepository implements EmbeddingRepositoryInterface
 {
     /** @var list<array{record: KnowledgeDocumentRecord, score: float}> */
     public array $rankedResults = [];
@@ -71,68 +93,48 @@ final class SemanticSearchRepository implements KnowledgeDocumentRepositoryInter
     /** @var array<string, mixed> */
     public array $filters = [];
 
-    public function create(array $data): KnowledgeDocumentRecord
+    public bool $throwsInvalidVector = false;
+
+    public function idsNeedingEmbeddings(?int $limit = null, bool $force = false, bool $retryFailed = false, ?string $documentId = null, ?string $sourceType = null, ?string $sourceName = null): array
     {
-        return KnowledgeDocumentRecord::query()->create($data);
-    }
-
-    public function find(string $id): ?KnowledgeDocumentRecord
-    {
-        return KnowledgeDocumentRecord::query()->find($id);
-    }
-
-    public function update(KnowledgeDocumentRecord $record, array $data): KnowledgeDocumentRecord
-    {
-        $record->fill($data)->save();
-
-        return $record->refresh();
-    }
-
-    public function delete(KnowledgeDocumentRecord $record): void
-    {
-        $record->delete();
-    }
-
-    public function findBySource(string $sourceType, string $sourceName, string $reference): ?KnowledgeDocumentRecord
-    {
-        return KnowledgeDocumentRecord::query()
-            ->where('source_type', $sourceType)
-            ->where('source_name', $sourceName)
-            ->where('reference', $reference)
-            ->first();
-    }
-
-    public function paginate(array $filters, int $perPage): LengthAwarePaginator
-    {
-        return new LengthAwarePaginator([], 0, $perPage);
-    }
-
-    public function fullTextSearch(string $query, int $limit, array $filters = []): array
-    {
-        $this->filters = $filters;
-
         return [];
     }
 
-    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page, array $filters = []): LengthAwarePaginator
+    public function documentsForEmbedding(array $ids): Collection
     {
+        return new Collection();
+    }
+
+    public function storeEmbedding(string $documentId, array $embedding, string $model): void {}
+
+    public function markEmbeddingFailed(string $documentId, string $error): void {}
+
+    public function summarizeEmbeddingStatus(array $ids): array
+    {
+        return ['processed' => 0, 'generated' => 0, 'failures' => 0];
+    }
+
+    public function semanticSearch(array $embedding, int $topK, float $threshold, array $filters = []): array
+    {
+        if ($this->throwsInvalidVector) {
+            throw new InvalidEmbeddingVectorException('Semantic search requires a non-empty embedding vector.');
+        }
+
         $this->embedding = $embedding;
-        $this->limit = $limit;
+        $this->limit = $topK;
         $this->threshold = $threshold;
-        $this->page = $page;
         $this->filters = $filters;
 
-        $filtered = array_values(array_filter(
+        return array_slice(array_values(array_filter(
             $this->rankedResults,
             static fn (array $result): bool => $result['score'] >= $threshold,
-        ));
-        $pageItems = array_slice($filtered, ($page - 1) * $limit, $limit);
-
-        return new LengthAwarePaginator($pageItems, count($filtered), $limit, $page);
+        )), 0, $topK);
     }
 }
 
-it('performs semantic search through the API with threshold and pagination', function (): void {
+it('performs semantic search through the API with threshold and top k', function (): void {
+    config()->set('embeddings.dimensions', 3);
+
     $embeddingProvider = new SemanticSearchEmbeddingProvider();
     $repository = new SemanticSearchRepository();
 
@@ -152,43 +154,67 @@ it('performs semantic search through the API with threshold and pagination', fun
     ];
 
     app()->instance(EmbeddingProviderInterface::class, $embeddingProvider);
-    app()->instance(KnowledgeDocumentRepositoryInterface::class, $repository);
+    app()->instance(EmbeddingRepositoryInterface::class, $repository);
 
     postJson('/api/documents/semantic-search', [
         'query' => 'Why did Jesus become man?',
-        'limit' => 1,
-        'page' => 2,
+        'top_k' => 1,
         'score_threshold' => 0.8,
     ])
         ->assertOk()
-        ->assertJsonPath('results.0.reference', 'CCC 460')
-        ->assertJsonPath('results.0.score', 0.90)
-        ->assertJsonPath('meta.current_page', 2)
-        ->assertJsonPath('meta.last_page', 2)
-        ->assertJsonPath('meta.limit', 1)
-        ->assertJsonPath('meta.total', 2)
+        ->assertJsonPath('results.0.reference', 'CCC 457')
+        ->assertJsonPath('results.0.score', 0.95)
+        ->assertJsonPath('results.0.title', $repository->rankedResults[0]['record']->title)
+        ->assertJsonPath('meta.top_k', 1)
+        ->assertJsonPath('meta.total', 1)
         ->assertJsonPath('meta.score_threshold', 0.8);
 
     expect($embeddingProvider->embeddedText)->toBe('Why did Jesus become man?')
         ->and($repository->embedding)->toBe([0.11, 0.22, 0.33])
         ->and($repository->limit)->toBe(1)
-        ->and($repository->page)->toBe(2)
         ->and($repository->threshold)->toBe(0.8);
 });
 
 it('validates semantic search options', function (): void {
     postJson('/api/documents/semantic-search', [
         'query' => 'x',
-        'limit' => 500,
+        'top_k' => 500,
         'score_threshold' => 1.5,
         'page' => 0,
     ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['query', 'limit', 'score_threshold', 'page']);
+        ->assertJsonValidationErrors(['query', 'top_k', 'score_threshold', 'page']);
 });
 
 it('returns a clear unavailable response when embeddings are not configured', function (): void {
     app()->instance(EmbeddingProviderInterface::class, new FailingSemanticSearchEmbeddingProvider());
+
+    postJson('/api/documents/semantic-search', [
+        'query' => 'Why did Jesus become man?',
+    ])
+        ->assertServiceUnavailable()
+        ->assertJsonPath('message', 'Semantic search is unavailable because embeddings are not configured.');
+});
+
+it('returns a clear unavailable response when the query embedding is invalid', function (): void {
+    config()->set('embeddings.dimensions', 3);
+    app()->instance(EmbeddingProviderInterface::class, new EmptySemanticSearchEmbeddingProvider());
+
+    postJson('/api/documents/semantic-search', [
+        'query' => 'Why did Jesus become man?',
+    ])
+        ->assertServiceUnavailable()
+        ->assertJsonPath('message', 'Semantic search is unavailable because embeddings are not configured.');
+});
+
+it('returns a clear unavailable response when vector search rejects the embedding', function (): void {
+    config()->set('embeddings.dimensions', 3);
+
+    $repository = new SemanticSearchRepository();
+    $repository->throwsInvalidVector = true;
+
+    app()->instance(EmbeddingProviderInterface::class, new SemanticSearchEmbeddingProvider());
+    app()->instance(EmbeddingRepositoryInterface::class, $repository);
 
     postJson('/api/documents/semantic-search', [
         'query' => 'Why did Jesus become man?',

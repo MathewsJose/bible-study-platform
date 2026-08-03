@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Knowledge;
 
+use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
 use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Tests\TestCase;
 
 class HybridSearchTest extends TestCase
@@ -17,6 +17,8 @@ class HybridSearchTest extends TestCase
 
     public function test_hybrid_search_combines_and_ranks_results(): void
     {
+        config()->set('embeddings.dimensions', 1);
+
         $doc1 = KnowledgeDocumentRecord::factory()->create(['reference' => 'Doc 1', 'source_name' => 'Other']);
         $doc2 = KnowledgeDocumentRecord::factory()->create(['reference' => 'Doc 2', 'source_name' => 'Douay-Rheims Bible']);
 
@@ -27,7 +29,9 @@ class HybridSearchTest extends TestCase
         };
 
         $mockRepo = \Mockery::mock(KnowledgeDocumentRepositoryInterface::class);
+        $mockEmbeddingRepo = \Mockery::mock(EmbeddingRepositoryInterface::class);
         app()->instance(KnowledgeDocumentRepositoryInterface::class, $mockRepo);
+        app()->instance(EmbeddingRepositoryInterface::class, $mockEmbeddingRepo);
         app()->instance(EmbeddingProviderInterface::class, $embeddingProvider);
 
         // Doc 1 has high full-text score, low semantic
@@ -40,12 +44,12 @@ class HybridSearchTest extends TestCase
                 ['record' => $doc2, 'score' => 0.1],
             ]);
 
-        $mockRepo->shouldReceive('semanticSearch')
+        $mockEmbeddingRepo->shouldReceive('semanticSearch')
             ->once()
-            ->andReturn(new LengthAwarePaginator([
+            ->andReturn([
                 ['record' => $doc2, 'score' => 0.9],
                 ['record' => $doc1, 'score' => 0.2],
-            ], 2, 10));
+            ]);
 
         $response = $this->postJson('/api/documents/hybrid-search', [
             'query' => 'test query',

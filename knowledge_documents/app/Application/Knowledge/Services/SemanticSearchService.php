@@ -5,40 +5,40 @@ declare(strict_types=1);
 namespace App\Application\Knowledge\Services;
 
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
-use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
+use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
 use App\Application\Knowledge\DTOs\KnowledgeDocumentData;
 use App\Application\Knowledge\DTOs\RankedKnowledgeDocumentData;
 use App\Application\Knowledge\Exceptions\EmbeddingProviderUnavailableException;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Throwable;
 
 final readonly class SemanticSearchService
 {
     public function __construct(
         private EmbeddingProviderInterface $embeddings,
-        private KnowledgeDocumentRepositoryInterface $documents,
+        private EmbeddingRepositoryInterface $documents,
+        private EmbeddingVectorValidator $vectors,
     ) {}
 
     /**
      * @param  array<string, mixed>  $filters
-     * @return LengthAwarePaginator<int, RankedKnowledgeDocumentData>
+     * @return list<RankedKnowledgeDocumentData>
      */
-    public function search(string $query, int $limit, float $threshold, int $page, array $filters = []): LengthAwarePaginator
+    public function search(string $query, int $topK, float $threshold, array $filters = []): array
     {
         try {
             $embedding = $this->embeddings->embed($query);
+            $this->vectors->validate(array_values($embedding));
+            $results = $this->documents->semanticSearch($embedding, $topK, $threshold, $filters);
         } catch (Throwable $exception) {
             throw EmbeddingProviderUnavailableException::forSearch($exception);
         }
 
-        /** @var LengthAwarePaginator<int, RankedKnowledgeDocumentData> $results */
-        $results = $this->documents
-            ->semanticSearch($embedding, $limit, $threshold, $page, $filters)
-            ->through(static fn (array $result): RankedKnowledgeDocumentData => new RankedKnowledgeDocumentData(
+        return array_map(
+            static fn (array $result): RankedKnowledgeDocumentData => new RankedKnowledgeDocumentData(
                 document: KnowledgeDocumentData::fromRecord($result['record']),
                 score: $result['score'],
-            ));
-
-        return $results;
+            ),
+            $results,
+        );
     }
 }

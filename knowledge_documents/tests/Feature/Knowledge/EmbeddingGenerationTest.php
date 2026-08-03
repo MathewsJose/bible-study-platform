@@ -39,6 +39,9 @@ final class RecordingEmbeddingProvider implements EmbeddingProviderInterface
 }
 
 it('generates embeddings for pending knowledge documents in batches of 100', function (): void {
+    config()->set('embeddings.dimensions', 3);
+    config()->set('embeddings.batch_size', 100);
+
     $provider = new RecordingEmbeddingProvider();
     app()->instance(EmbeddingProviderInterface::class, $provider);
 
@@ -61,7 +64,8 @@ it('generates embeddings for pending knowledge documents in batches of 100', fun
 
     expect($status)->toBe(Command::SUCCESS)
         ->and($provider->batchSizes)->toBe([100, 1])
-        ->and($output)->toContain('documents processed: 101')
+        ->and($output)->toContain('documents queued: 101')
+        ->and($output)->toContain('jobs queued: 2')
         ->and($output)->toContain('embeddings generated: 101')
         ->and($output)->toContain('failures: 0');
 

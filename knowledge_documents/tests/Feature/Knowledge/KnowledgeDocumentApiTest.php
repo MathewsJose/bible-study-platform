@@ -96,6 +96,8 @@ it('performs full text search with a database compatible fallback', function ():
 });
 
 it('performs semantic search with a database compatible fallback', function (): void {
+    config()->set('embeddings.dimensions', 3);
+
     app()->instance(EmbeddingProviderInterface::class, new class implements EmbeddingProviderInterface
     {
         public function embed(string $text): array

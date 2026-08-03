@@ -16,13 +16,13 @@ Laravel service for storing and retrieving Catholic theological knowledge docume
 The code follows a pragmatic clean architecture shape:
 
 - `app/Domain`: domain concepts, native enums, value objects, and the `KnowledgeDocument` domain entity.
-- `app/Application`: DTOs, contracts, and orchestration services such as document CRUD, full-text search, and semantic search.
-- `app/Infrastructure`: Eloquent persistence, pgvector SQL, dummy embeddings, and extensible importers.
+- `app/Application`: DTOs, contracts, and orchestration services such as document CRUD, embedding generation, full-text search, and semantic search.
+- `app/Infrastructure`: Eloquent persistence, pgvector SQL, embedding providers, and extensible importers.
 - `app/Presentation`: HTTP controllers and request validation.
 
 Eloquent models are treated as persistence records and are never returned directly from controllers. API responses are built from DTOs.
 
-Repository abstraction is used only at the persistence boundary because the service has database-specific query behavior for full-text search and pgvector similarity search.
+Repository abstraction is used at persistence boundaries because the service has database-specific behavior for full-text search, embedding storage, and pgvector similarity search.
 
 ## Knowledge Sources
 
@@ -70,7 +70,37 @@ http://localhost:5050
 - `POST /api/documents/search`
 - `POST /api/documents/semantic-search`
 
-Semantic search uses `EmbeddingProviderInterface`. The current implementation is deterministic and local (`DummyEmbeddingProvider`) so the service can run without vendor credentials. OpenAI, Gemini, or local model providers can be added by binding a new provider to the interface.
+Semantic search uses `EmbeddingProviderInterface` and `EmbeddingRepositoryInterface`. Providers are selected through configuration, so OpenAI, Gemini, Ollama, or local sentence-transformer adapters can be added without changing generation or search business logic.
+
+Example semantic search request:
+
+```json
+{
+  "query": "Why did Jesus become man?",
+  "top_k": 10,
+  "source_types": ["catechism", "bible_verse"],
+  "score_threshold": 0.4
+}
+```
+
+Example response:
+
+```json
+{
+  "results": [
+    {
+      "reference": "CCC 457",
+      "score": 0.95,
+      "title": "Why the Word became Flesh"
+    }
+  ],
+  "meta": {
+    "top_k": 10,
+    "total": 1,
+    "score_threshold": 0.4
+  }
+}
+```
 
 ## Database
 
@@ -84,6 +114,73 @@ The `knowledge_documents` table uses:
 - HNSW cosine vector index
 
 SQLite-compatible fallbacks exist only so the automated test suite can run quickly without a PostgreSQL container.
+
+## Embedding Pipeline
+
+The embedding pipeline is the foundation for RAG and future agent workflows.
+
+Core classes:
+
+- `EmbeddingProviderInterface`: provider boundary used by search and generation.
+- `OpenAIEmbeddingProvider`: OpenAI implementation using Laravel's HTTP client with timeouts and retries.
+- `NullEmbeddingProvider`: safe default that fails clearly when no provider is configured.
+- `EmbeddingRepositoryInterface`: persistence boundary for selecting documents, storing vectors, marking failures, and vector search.
+- `EloquentEmbeddingRepository`: PostgreSQL pgvector implementation with a SQLite fallback for tests.
+- `EmbeddingGenerationService`: dispatches queue batches and validates provider output.
+- `EmbeddingJob`: queue job that generates embeddings for a chunk of document IDs.
+
+Configuration lives in `config/embeddings.php` and is environment-driven:
+
+```env
+EMBEDDINGS_PROVIDER=openai
+EMBEDDINGS_MODEL=text-embedding-3-small
+EMBEDDINGS_DIMENSIONS=1536
+EMBEDDINGS_BATCH_SIZE=100
+EMBEDDINGS_TIMEOUT=30
+EMBEDDINGS_RETRY_ATTEMPTS=3
+EMBEDDINGS_RETRY_SLEEP_MS=200
+EMBEDDINGS_QUEUE_CONNECTION=database
+OPENAI_API_KEY=
+OPENAI_EMBEDDINGS_URL=https://api.openai.com/v1/embeddings
+```
+
+For local tests or deterministic development runs, bind a fake provider in tests or set the provider to `dummy`. Production should use a real provider and dimensions that match the existing `vector(1536)` column.
+
+Generate embeddings:
+
+```bash
+php artisan embeddings:generate --batch=100
+```
+
+Useful options:
+
+```bash
+php artisan embeddings:generate --document-id=UUID
+php artisan embeddings:generate --force
+php artisan embeddings:generate --retry-failed
+php artisan embeddings:generate --dry-run
+```
+
+The command finds documents that need embeddings, chunks IDs into queue jobs, dispatches them as a Laravel batch, displays a progress bar while dispatching, and prints a summary. With `EMBEDDINGS_QUEUE_CONNECTION=sync`, jobs run immediately. With `database`, `redis`, or another async connection, start a worker:
+
+```bash
+php artisan queue:work database --tries=3
+```
+
+Failures are recorded on each document through `embedding_status=failed` and `embedding_error`. Jobs also implement a `failed()` hook so permanent job failures are logged and stored by Laravel's failed job system.
+
+Vector validation:
+
+- Vectors must match `EMBEDDINGS_DIMENSIONS`.
+- Values must be numeric and finite.
+- Invalid vectors are rejected and the document is marked failed.
+
+Troubleshooting:
+
+- Empty semantic results usually mean no documents have `embedding_status=ready`, the score threshold is too high, or filters exclude matches.
+- `503 Semantic search is unavailable` means the provider is not configured or failed to generate a query embedding.
+- PostgreSQL production search requires pgvector and stored vectors in the existing `embedding` column.
+- If jobs remain queued, run `php artisan queue:work` with the same connection configured by `EMBEDDINGS_QUEUE_CONNECTION`.
 
 ## Import Pipeline
 

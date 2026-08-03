@@ -33,10 +33,4 @@ interface KnowledgeDocumentRepositoryInterface
      */
     public function fullTextSearch(string $query, int $limit, array $filters = []): array;
 
-    /**
-     * @param  list<float>  $embedding
-     * @param  array<string, mixed>  $filters
-     * @return LengthAwarePaginator<int, array{record: KnowledgeDocumentRecord, score: float}>
-     */
-    public function semanticSearch(array $embedding, int $limit, float $threshold, int $page, array $filters = []): LengthAwarePaginator;
 }

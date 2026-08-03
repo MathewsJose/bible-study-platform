@@ -9,11 +9,14 @@ use Illuminate\Support\Facades\Http;
 uses(Tests\TestCase::class);
 
 it('requests embeddings from OpenAI using configured model and retries failures', function (): void {
-    config()->set('services.openai.api_key', 'test-key');
-    config()->set('services.openai.embedding_model', 'configured-embedding-model');
-    config()->set('services.openai.embedding_dimensions', 3);
-    config()->set('services.openai.retry_attempts', 2);
-    config()->set('services.openai.retry_sleep_ms', 0);
+    Http::preventStrayRequests();
+
+    config()->set('embeddings.openai.api_key', 'test-key');
+    config()->set('embeddings.model', 'configured-embedding-model');
+    config()->set('embeddings.dimensions', 3);
+    config()->set('embeddings.retry_attempts', 2);
+    config()->set('embeddings.retry_sleep_ms', 0);
+    config()->set('embeddings.timeout', 5);
 
     Http::fakeSequence()
         ->push(['error' => ['message' => 'temporary failure']], 500)
@@ -44,8 +47,8 @@ it('requests embeddings from OpenAI using configured model and retries failures'
 });
 
 it('requires an OpenAI API key', function (): void {
-    config()->set('services.openai.api_key', '');
-    config()->set('services.openai.embedding_model', 'configured-embedding-model');
+    config()->set('embeddings.openai.api_key', '');
+    config()->set('embeddings.model', 'configured-embedding-model');
 
     app(OpenAIEmbeddingProvider::class)->embed('text');
 })->throws(RuntimeException::class, 'OPENAI_API_KEY is not configured.');

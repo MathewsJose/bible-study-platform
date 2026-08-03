@@ -37,6 +37,8 @@ class ImprovedEmbeddingGenerationTest extends TestCase
 
     public function test_dry_run_only_reports_count(): void
     {
+        config()->set('embeddings.dimensions', 1);
+
         KnowledgeDocumentRecord::factory()->count(5)->create();
 
         $status = Artisan::call('embeddings:generate', ['--dry-run' => true]);
@@ -49,6 +51,8 @@ class ImprovedEmbeddingGenerationTest extends TestCase
 
     public function test_limit_restricts_processing(): void
     {
+        config()->set('embeddings.dimensions', 1);
+
         KnowledgeDocumentRecord::factory()->count(10)->create();
         
         $provider = $this->getFakeProvider();
@@ -58,13 +62,15 @@ class ImprovedEmbeddingGenerationTest extends TestCase
         $output = Artisan::output();
 
         $this->assertEquals(Command::SUCCESS, $status);
-        $this->assertStringContainsString('documents processed: 3', $output);
+        $this->assertStringContainsString('documents queued: 3', $output);
         $this->assertEquals(7, KnowledgeDocumentRecord::where('embedding_status', EmbeddingStatus::Pending)->count());
         $this->assertEquals(3, KnowledgeDocumentRecord::where('embedding_status', EmbeddingStatus::Ready)->count());
     }
 
     public function test_source_filters_work(): void
     {
+        config()->set('embeddings.dimensions', 1);
+
         KnowledgeDocumentRecord::factory()->count(3)->create([
             'source_type' => SourceType::BibleVerse,
             'source_name' => 'Source A',
@@ -82,6 +88,8 @@ class ImprovedEmbeddingGenerationTest extends TestCase
 
     public function test_retry_failed_includes_failed_records(): void
     {
+        config()->set('embeddings.dimensions', 1);
+
         KnowledgeDocumentRecord::factory()->create([
             'embedding_status' => EmbeddingStatus::Failed,
             'embedding_error' => 'Previous error',
@@ -103,6 +111,8 @@ class ImprovedEmbeddingGenerationTest extends TestCase
 
     public function test_success_updates_all_fields_and_clears_error(): void
     {
+        config()->set('embeddings.dimensions', 1);
+
         $record = KnowledgeDocumentRecord::factory()->create([
             'embedding_status' => EmbeddingStatus::Failed,
             'embedding_error' => 'Old error',
@@ -123,6 +133,8 @@ class ImprovedEmbeddingGenerationTest extends TestCase
 
     public function test_failure_sets_failed_status_and_error_message(): void
     {
+        config()->set('embeddings.dimensions', 1);
+
         KnowledgeDocumentRecord::factory()->create();
         
         $provider = $this->getFakeProvider();
@@ -138,5 +150,32 @@ class ImprovedEmbeddingGenerationTest extends TestCase
         $record = KnowledgeDocumentRecord::first();
         $this->assertEquals(EmbeddingStatus::Failed, $record->embedding_status);
         $this->assertEquals('Failed to embed', $record->embedding_error);
+    }
+
+    public function test_document_id_and_force_regenerate_a_single_ready_document(): void
+    {
+        config()->set('embeddings.dimensions', 1);
+
+        $ready = KnowledgeDocumentRecord::factory()->create([
+            'embedding_status' => EmbeddingStatus::Ready,
+            'embedding' => [0.9],
+            'embedded_at' => now()->subDay(),
+        ]);
+        KnowledgeDocumentRecord::factory()->create();
+
+        $provider = $this->getFakeProvider();
+        app()->instance(EmbeddingProviderInterface::class, $provider);
+
+        $status = Artisan::call('embeddings:generate', [
+            '--document-id' => $ready->id,
+            '--force' => true,
+            '--batch' => 1,
+        ]);
+
+        $ready->refresh();
+
+        $this->assertEquals(Command::SUCCESS, $status);
+        $this->assertEquals([0.1], $ready->embedding);
+        $this->assertEquals(1, KnowledgeDocumentRecord::where('embedding_status', EmbeddingStatus::Pending)->count());
     }
 }
