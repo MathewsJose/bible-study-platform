@@ -25,25 +25,26 @@ final class ChurchFatherImporter extends AbstractDocumentImporter
             return parent::importFile($path, $metadata);
         }
 
-        $contents = file_get_contents($path);
-        if ($contents === false) {
-            throw new \RuntimeException("Unable to read file: {$path}");
-        }
-
-        $payload = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
-        $author = $payload['author'] ?? 'Unknown Author';
-        $work = $payload['work'] ?? 'Unknown Work';
-        $sourceName = "{$author}, {$work}";
-
-        $manifest = $this->startManifest($path, $this->sourceType()->value, $sourceName, $metadata);
+        $manifest = $this->startManifest($path, $this->sourceType()->value, basename($path), $metadata);
 
         try {
+            $contents = file_get_contents($path);
+            if ($contents === false) {
+                throw new \RuntimeException("Unable to read file: {$path}");
+            }
+
+            $payload = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+            $author = $payload['author'] ?? 'Unknown Author';
+            $work = $payload['work'] ?? 'Unknown Work';
+            $sourceName = "{$author}, {$work}";
+
             $manifest->update(array_filter([
+                'source_name' => $sourceName,
                 'source_url' => $payload['source_url'] ?? null,
                 'license' => $payload['license'] ?? null,
                 'license_url' => $payload['license_url'] ?? null,
                 'language' => $payload['language'] ?? 'en',
-            ]));
+            ], static fn (mixed $value): bool => $value !== null && $value !== ''));
 
             $result = $this->importSections($payload, $manifest->toSourceMetadata());
 

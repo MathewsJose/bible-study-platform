@@ -13,19 +13,20 @@ use App\Infrastructure\Knowledge\Importers\ChurchFatherImporter;
 use App\Infrastructure\Knowledge\Importers\ImportManifest;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use SplFileInfo;
 use Symfony\Component\Finder\Finder;
 
 final class KnowledgeImportCommand extends Command
 {
-    protected $signature = 'knowledge:import
+    protected $signature = 'knowledge
                             {--source-url= : The source URL of the data}
                             {--license= : The license of the data}
                             {--license-url= : The URL to the license text}
                             {--rights-notes= : Additional rights or copyright notes}
                             {--language=en : The language of the documents}';
+
+    /** @var list<string> */
+    protected $aliases = ['knowledge:import'];
 
     protected $description = 'Scan configured import directories, detect files, and import supported documents.';
 
@@ -61,17 +62,23 @@ final class KnowledgeImportCommand extends Command
             'license_url' => $this->option('license-url'),
             'rights_notes' => $this->option('rights-notes'),
             'language' => $this->option('language'),
-        ]);
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
         $imported = 0;
         $skipped = 0;
         $failed = 0;
+        $filesScanned = 0;
+        $filesImported = 0;
+        $filesSkipped = 0;
+        $filesFailed = 0;
 
         foreach ($files as $file) {
             $path = $file->getRealPath();
             if ($path === false) {
                 continue;
             }
+
+            $filesScanned++;
 
             $fileType = $this->detectFileType($path);
             if ($fileType === null) {
@@ -80,6 +87,7 @@ final class KnowledgeImportCommand extends Command
 
             if ($this->isAlreadyImported($path)) {
                 $skipped++;
+                $filesSkipped++;
                 continue;
             }
 
@@ -89,17 +97,27 @@ final class KnowledgeImportCommand extends Command
                 $imported += $result->created;
                 $skipped += $result->skipped;
                 $failed += $result->failures;
+                $filesImported++;
+
+                if ($result->failures > 0) {
+                    $filesFailed++;
+                }
             } catch (\Throwable $exception) {
                 $failed++;
+                $filesFailed++;
                 $this->error("Failed to import {$path}: {$exception->getMessage()}");
             }
         }
 
+        $this->line("files scanned: {$filesScanned}");
+        $this->line("files imported: {$filesImported}");
+        $this->line("files skipped: {$filesSkipped}");
+        $this->line("files failed: {$filesFailed}");
         $this->line("imported: {$imported}");
         $this->line("skipped: {$skipped}");
         $this->line("failed: {$failed}");
 
-        return self::SUCCESS;
+        return $failed === 0 ? self::SUCCESS : self::FAILURE;
     }
 
     /** @param list<string> $directories */
@@ -114,7 +132,7 @@ final class KnowledgeImportCommand extends Command
             }
 
             $finder = new Finder();
-            $finder->files()->in($resolved)->name(['*.json', '*.txt', '*.md']);
+            $finder->files()->in($resolved)->name(['*.json', '*.txt', '*.md'])->sortByName();
 
             foreach ($finder as $file) {
                 $files->push($file);

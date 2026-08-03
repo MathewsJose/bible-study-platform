@@ -42,7 +42,7 @@ class ChurchFatherImportTest extends TestCase
 
         config(['knowledge.import.directories' => [$dir]]);
 
-        $status = Artisan::call('knowledge:import');
+        $status = Artisan::call('knowledge');
         
         $this->assertEquals(0, $status);
         
