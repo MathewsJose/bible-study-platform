@@ -62,18 +62,38 @@ class SearchFilterTest extends TestCase
             ->assertJsonPath('data.0.document.metadata.book', 'Genesis');
     }
 
+    public function test_full_text_search_filters_by_metadata_chapter(): void
+    {
+        KnowledgeDocumentRecord::factory()->create([
+            'title' => 'Bible Verse',
+            'content' => 'In the beginning was the Word, and the Word was God.',
+            'metadata' => ['book' => 'John', 'chapter' => 1],
+        ]);
+        KnowledgeDocumentRecord::factory()->create([
+            'title' => 'Bible Verse',
+            'content' => 'In the beginning was the Word, and the Word was God.',
+            'metadata' => ['book' => 'John', 'chapter' => 2],
+        ]);
+
+        $response = $this->postJson('/api/documents/search', [
+            'query' => 'God',
+            'book' => 'John',
+            'chapter' => 1,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.document.metadata.chapter', 1);
+    }
+
     public function test_semantic_search_applies_filters(): void
     {
-        // We need to mock the repository to check if filters are passed correctly
-        // because semantic search returns empty on SQLite.
-        
         $embeddingProvider = new class implements EmbeddingProviderInterface {
             public function embed(string $text): array { return [0.1]; }
             public function embedMany(array $texts): array { return [[0.1]]; }
             public function identifier(): string { return 'test'; }
         };
-        
-        // Use a spy/mock for repository
+
         $mockRepo = \Mockery::mock(KnowledgeDocumentRepositoryInterface::class);
         app()->instance(KnowledgeDocumentRepositoryInterface::class, $mockRepo);
         app()->instance(EmbeddingProviderInterface::class, $embeddingProvider);
@@ -82,7 +102,7 @@ class SearchFilterTest extends TestCase
             'source_type' => SourceType::BibleVerse->value,
             'tradition' => Tradition::Catholic->value,
             'book' => 'Matthew',
-            'chapter' => '5',
+            'chapter' => 5,
             'source_name' => 'Douay-Rheims',
         ];
 

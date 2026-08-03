@@ -8,6 +8,7 @@ use App\Application\Knowledge\DTOs\ImportResult;
 use App\Infrastructure\Knowledge\Importers\BibleImporter;
 use App\Infrastructure\Knowledge\Importers\DouayRheimsImporter;
 use App\Infrastructure\Knowledge\Importers\CatechismImporter;
+use App\Infrastructure\Knowledge\Importers\ModernCatechismImporter;
 use App\Infrastructure\Knowledge\Importers\ChurchFatherImporter;
 use App\Infrastructure\Knowledge\Importers\ImportManifest;
 use Illuminate\Console\Command;
@@ -35,6 +36,7 @@ final class KnowledgeImportCommand extends Command
         private readonly BibleImporter $bibleImporter,
         private readonly DouayRheimsImporter $douayRheimsImporter,
         private readonly CatechismImporter $catechismImporter,
+        private readonly ModernCatechismImporter $modernCatechismImporter,
         private readonly ChurchFatherImporter $churchFatherImporter,
     ) {
         parent::__construct();
@@ -43,6 +45,7 @@ final class KnowledgeImportCommand extends Command
             'bible' => fn (string $path, array $metadata = []): ImportResult => $this->bibleImporter->importFile($path, $metadata),
             'douay_rheims' => fn (string $path, array $metadata = []): ImportResult => $this->douayRheimsImporter->importFile($path, $metadata),
             'catechism' => fn (string $path, array $metadata = []): ImportResult => $this->catechismImporter->importFile($path, $metadata),
+            'ccc' => fn (string $path, array $metadata = []): ImportResult => $this->modernCatechismImporter->importFile($path, $metadata),
             'church_father' => fn (string $path, array $metadata = []): ImportResult => $this->churchFatherImporter->importFile($path, $metadata),
         ];
     }
@@ -144,6 +147,10 @@ final class KnowledgeImportCommand extends Command
                 return 'douay_rheims';
             }
 
+            if (str_contains($lowerPath, 'ccc') || str_contains($lowerPath, 'modern-catechism')) {
+                return 'ccc';
+            }
+
             if (str_contains($lowerPath, 'catechism')) {
                 return 'catechism';
             }
@@ -177,6 +184,5 @@ final class KnowledgeImportCommand extends Command
 
         return ImportManifest::query()->where('checksum', $hash)->where('status', 'completed')->exists();
     }
-
 
 }

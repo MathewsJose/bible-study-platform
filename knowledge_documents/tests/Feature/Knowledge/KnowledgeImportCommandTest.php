@@ -30,18 +30,28 @@ it('imports multiple supported files from configured directories and records man
     $churchFatherPath = $importRoot.'/church-fathers-sample.txt';
     file_put_contents($churchFatherPath, "First church father paragraph.\n\nSecond church father paragraph.");
 
+    $modernCatechismPath = $importRoot.'/modern-catechism-ccc.json';
+    file_put_contents($modernCatechismPath, json_encode([
+        'catechism' => 'Catechism of the Catholic Church',
+        'language' => 'en',
+        'paragraphs' => [
+            ['number' => 1, 'content' => 'God is infinitely perfect and blessed.'],
+            ['number' => 2, 'content' => 'God draws close to man.'],
+        ],
+    ], JSON_THROW_ON_ERROR));
+
     config()->set('knowledge.import.directories', [$importRoot]);
 
     $status = Artisan::call('knowledge:import');
     $output = Artisan::output();
 
     expect($status)->toBe(Command::SUCCESS)
-        ->and($output)->toContain('imported: 6')
+        ->and($output)->toContain('imported: 8')
         ->and($output)->toContain('skipped: 0')
         ->and($output)->toContain('failed: 0');
 
-    assertDatabaseCount('knowledge_documents', 6);
-    assertDatabaseCount('import_manifests', 3);
+    assertDatabaseCount('knowledge_documents', 8);
+    assertDatabaseCount('import_manifests', 4);
     assertDatabaseHas('import_manifests', [
         'source_type' => 'bible',
         'records_created' => 2,
@@ -58,6 +68,18 @@ it('imports multiple supported files from configured directories and records man
         'source_type' => SourceType::Catechism->value,
         'source_name' => 'catechism-sample.txt',
         'reference' => 'catechism-sample.txt#1',
+    ]);
+    assertDatabaseHas('import_manifests', [
+        'source_type' => 'catechism',
+        'source_name' => 'Catechism of the Catholic Church',
+        'records_created' => 2,
+        'status' => 'completed',
+        'importer' => 'ModernCatechismImporter',
+    ]);
+    assertDatabaseHas('knowledge_documents', [
+        'source_type' => SourceType::Catechism->value,
+        'source_name' => 'Catechism of the Catholic Church',
+        'reference' => 'CCC 1',
     ]);
 });
 

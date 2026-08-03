@@ -9,7 +9,6 @@ use App\Application\Knowledge\DTOs\EmbeddingGenerationResult;
 use App\Domain\Knowledge\Enums\EmbeddingStatus;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -150,15 +149,13 @@ final readonly class EmbeddingGenerationService
      */
     private function storeEmbedding(KnowledgeDocumentRecord $document, array $embedding): void
     {
-        KnowledgeDocumentRecord::query()
-            ->whereKey($document->id)
-            ->update([
-                'embedding' => $this->formatEmbedding($embedding),
-                'embedding_status' => EmbeddingStatus::Ready,
-                'embedding_model' => $this->provider->identifier(),
-                'embedded_at' => now(),
-                'embedding_error' => null,
-            ]);
+        $document->forceFill([
+            'embedding' => $embedding,
+            'embedding_status' => EmbeddingStatus::Ready,
+            'embedding_model' => $this->provider->identifier(),
+            'embedded_at' => now(),
+            'embedding_error' => null,
+        ])->save();
     }
 
     private function markAsFailed(KnowledgeDocumentRecord $document, string $error): void
@@ -171,15 +168,4 @@ final readonly class EmbeddingGenerationService
             ]);
     }
 
-    /**
-     * @param  list<float>  $embedding
-     */
-    private function formatEmbedding(array $embedding): string
-    {
-        if (DB::getDriverName() === 'pgsql') {
-            return '['.implode(',', $embedding).']';
-        }
-
-        return json_encode($embedding, JSON_THROW_ON_ERROR);
-    }
 }

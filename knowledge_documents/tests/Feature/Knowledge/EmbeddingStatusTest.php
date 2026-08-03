@@ -65,6 +65,7 @@ class EmbeddingStatusTest extends TestCase
         $record = KnowledgeDocumentRecord::find($document->id);
         $this->assertEquals(EmbeddingStatus::Ready, $record->embedding_status);
         $this->assertNotNull($record->embedded_at);
+        $this->assertEquals(array_fill(0, 1536, 0.1), $record->embedding);
     }
 
     public function test_import_sets_pending_status_for_new_records(): void
@@ -95,7 +96,7 @@ class EmbeddingStatusTest extends TestCase
             'reference' => 'Genesis 1:1',
             'content' => 'Old content',
             'embedding_status' => EmbeddingStatus::Ready,
-            'embedding' => json_encode(array_fill(0, 1536, 0.1)),
+            'embedding' => array_fill(0, 1536, 0.1),
             'embedded_at' => now(),
         ]);
 
@@ -123,7 +124,7 @@ class EmbeddingStatusTest extends TestCase
         $record = KnowledgeDocumentRecord::factory()->create([
             'content' => 'Old content',
             'embedding_status' => EmbeddingStatus::Ready,
-            'embedding' => json_encode(array_fill(0, 1536, 0.1)),
+            'embedding' => array_fill(0, 1536, 0.1),
             'embedded_at' => now(),
         ]);
 

@@ -25,7 +25,7 @@ final class SearchKnowledgeDocumentsRequest extends FormRequest
             'source_name' => ['sometimes', 'string'],
             'tradition' => ['sometimes', 'string'],
             'book' => ['sometimes', 'string'],
-            'chapter' => ['sometimes', 'string'],
+            'chapter' => ['sometimes', 'integer'],
         ];
     }
 }

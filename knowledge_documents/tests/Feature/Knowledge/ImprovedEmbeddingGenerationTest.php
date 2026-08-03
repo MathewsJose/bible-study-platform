@@ -118,7 +118,7 @@ class ImprovedEmbeddingGenerationTest extends TestCase
         $this->assertEquals('improved-model', $record->embedding_model);
         $this->assertNotNull($record->embedded_at);
         $this->assertNull($record->embedding_error);
-        $this->assertNotNull($record->embedding);
+        $this->assertEquals([0.1], $record->embedding);
     }
 
     public function test_failure_sets_failed_status_and_error_message(): void

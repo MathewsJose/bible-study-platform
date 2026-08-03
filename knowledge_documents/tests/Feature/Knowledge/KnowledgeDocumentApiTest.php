@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
+use App\Domain\Knowledge\Enums\EmbeddingStatus;
 use App\Domain\Knowledge\Enums\SourceType;
 use App\Domain\Knowledge\Enums\Tradition;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
@@ -93,11 +95,47 @@ it('performs full text search with a database compatible fallback', function ():
         ->assertJsonPath('data.0.document.title', 'Eucharistic communion');
 });
 
-it('returns an empty semantic result set on databases without pgvector', function (): void {
-    KnowledgeDocumentRecord::factory()->create();
+it('performs semantic search with a database compatible fallback', function (): void {
+    app()->instance(EmbeddingProviderInterface::class, new class implements EmbeddingProviderInterface
+    {
+        public function embed(string $text): array
+        {
+            return [1.0, 0.0, 0.0];
+        }
 
-    postJson('/api/documents/semantic-search', ['query' => 'grace and salvation'])
+        public function embedMany(array $texts): array
+        {
+            return array_map(fn (): array => [1.0, 0.0, 0.0], $texts);
+        }
+
+        public function identifier(): string
+        {
+            return 'test-model';
+        }
+    });
+
+    KnowledgeDocumentRecord::factory()->create([
+        'reference' => 'John 3:16',
+        'title' => 'God so loved the world',
+        'metadata' => ['book' => 'John', 'chapter' => 3],
+        'embedding_status' => EmbeddingStatus::Ready,
+        'embedding' => [1.0, 0.0, 0.0],
+    ]);
+
+    KnowledgeDocumentRecord::factory()->create([
+        'reference' => 'John 1:1',
+        'title' => 'In the beginning',
+        'metadata' => ['book' => 'John', 'chapter' => 1],
+        'embedding_status' => EmbeddingStatus::Ready,
+        'embedding' => [0.0, 1.0, 0.0],
+    ]);
+
+    postJson('/api/documents/semantic-search', [
+        'query' => 'grace and salvation',
+        'score_threshold' => 0.1,
+    ])
         ->assertOk()
-        ->assertJsonPath('results', [])
-        ->assertJsonPath('meta.total', 0);
+        ->assertJsonPath('results.0.reference', 'John 3:16')
+        ->assertJsonPath('results.0.score', 1)
+        ->assertJsonPath('meta.total', 1);
 });

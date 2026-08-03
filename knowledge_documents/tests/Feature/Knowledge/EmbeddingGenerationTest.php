@@ -52,7 +52,7 @@ it('generates embeddings for pending knowledge documents in batches of 100', fun
     KnowledgeDocumentRecord::factory()->create([
         'reference' => 'CCC 999',
         'content' => 'Already embedded',
-        'embedding' => json_encode([0.1, 0.2, 0.3], JSON_THROW_ON_ERROR),
+        'embedding' => [0.1, 0.2, 0.3],
         'embedding_status' => EmbeddingStatus::Ready,
     ]);
 
@@ -69,6 +69,9 @@ it('generates embeddings for pending knowledge documents in batches of 100', fun
         'reference' => 'CCC 1',
         'embedding' => json_encode([11.0, 0.0, 1.0], JSON_THROW_ON_ERROR),
     ]);
+
+    expect(KnowledgeDocumentRecord::query()->where('reference', 'CCC 1')->first()?->embedding)
+        ->toEqual([11.0, 0.0, 1.0]);
 });
 
 it('reports when there are no pending embeddings', function (): void {

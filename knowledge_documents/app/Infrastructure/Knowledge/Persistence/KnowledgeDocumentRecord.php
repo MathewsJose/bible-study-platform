@@ -62,6 +62,7 @@ final class KnowledgeDocumentRecord extends Model
             'metadata' => 'array',
             'embedding_status' => EmbeddingStatus::class,
             'embedded_at' => 'immutable_datetime',
+            'embedding' => 'array',
         ];
     }
 
