@@ -25,6 +25,8 @@ final readonly class KnowledgeDocumentData
         public string $updatedAt,
         public string $embeddingStatus,
         public ?string $embeddingModel = null,
+        public ?string $embeddingProvider = null,
+        public ?int $embeddingDimensions = null,
         public ?string $embeddedAt = null,
         public ?string $embeddingError = null,
     ) {}
@@ -44,6 +46,8 @@ final readonly class KnowledgeDocumentData
             updatedAt: (string) $record->updated_at?->toJSON(),
             embeddingStatus: ($record->embedding_status ?? EmbeddingStatus::Pending)->value,
             embeddingModel: $record->embedding_model,
+            embeddingProvider: $record->embedding_provider,
+            embeddingDimensions: $record->embedding_dimensions,
             embeddedAt: $record->embedded_at?->toJSON(),
             embeddingError: $record->embedding_error,
         );
@@ -65,6 +69,8 @@ final readonly class KnowledgeDocumentData
             'updated_at' => $this->updatedAt,
             'embedding_status' => $this->embeddingStatus,
             'embedding_model' => $this->embeddingModel,
+            'embedding_provider' => $this->embeddingProvider,
+            'embedding_dimensions' => $this->embeddingDimensions,
             'embedded_at' => $this->embeddedAt,
             'embedding_error' => $this->embeddingError,
         ];

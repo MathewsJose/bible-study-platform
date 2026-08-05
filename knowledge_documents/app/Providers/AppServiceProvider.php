@@ -10,6 +10,7 @@ use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Application\Knowledge\Contracts\ResultFusionStrategyInterface;
 use App\Application\Knowledge\Services\WeightedScoreFusionStrategy;
 use App\Infrastructure\Knowledge\Embedding\DummyEmbeddingProvider;
+use App\Infrastructure\Knowledge\Embedding\LocalEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\NullEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\OpenAIEmbeddingProvider;
 use App\Infrastructure\Knowledge\Persistence\EloquentEmbeddingRepository;
@@ -29,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(KnowledgeDocumentRepositoryInterface::class, EloquentKnowledgeDocumentRepository::class);
         $this->app->bind(EmbeddingRepositoryInterface::class, EloquentEmbeddingRepository::class);
         $this->app->bind(ResultFusionStrategyInterface::class, WeightedScoreFusionStrategy::class);
-        $this->app->bind(EmbeddingProviderInterface::class, $this->embeddingProviderClass());
+        $this->app->bind(EmbeddingProviderInterface::class, fn (): EmbeddingProviderInterface => $this->app->make($this->embeddingProviderClass()));
     }
 
     /**
@@ -46,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
     {
         return match (config('embeddings.provider', 'null')) {
             'openai' => OpenAIEmbeddingProvider::class,
+            'local' => LocalEmbeddingProvider::class,
             'dummy' => DummyEmbeddingProvider::class,
             default => NullEmbeddingProvider::class,
         };

@@ -52,7 +52,7 @@ final class EvaluationEmbeddingRepository implements EmbeddingRepositoryInterfac
         return new Collection();
     }
 
-    public function storeEmbedding(string $documentId, array $embedding, string $model): void {}
+    public function storeEmbedding(string $documentId, array $embedding, string $provider, string $model, int $dimensions): void {}
 
     public function markEmbeddingFailed(string $documentId, string $error): void {}
 

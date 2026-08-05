@@ -52,7 +52,7 @@ final class EloquentEmbeddingRepository implements EmbeddingRepositoryInterface
             ->get(['id', 'content']);
     }
 
-    public function storeEmbedding(string $documentId, array $embedding, string $model): void
+    public function storeEmbedding(string $documentId, array $embedding, string $provider, string $model, int $dimensions): void
     {
         KnowledgeDocumentRecord::query()
             ->whereKey($documentId)
@@ -60,6 +60,8 @@ final class EloquentEmbeddingRepository implements EmbeddingRepositoryInterface
                 'embedding' => $this->formatEmbeddingForStorage($embedding),
                 'embedding_status' => EmbeddingStatus::Ready,
                 'embedding_model' => $model,
+                'embedding_provider' => $provider,
+                'embedding_dimensions' => $dimensions,
                 'embedded_at' => now(),
                 'embedding_error' => null,
             ]);

@@ -79,6 +79,7 @@ class ImprovedEmbeddingGenerationTest extends TestCase
             'source_type' => SourceType::BibleVerse,
             'source_name' => 'Source B',
         ]);
+        app()->instance(EmbeddingProviderInterface::class, $this->getFakeProvider());
 
         $status = Artisan::call('embeddings:generate', ['--source-name' => 'Source A']);
         
@@ -97,6 +98,7 @@ class ImprovedEmbeddingGenerationTest extends TestCase
         KnowledgeDocumentRecord::factory()->create([
             'embedding_status' => EmbeddingStatus::Pending,
         ]);
+        app()->instance(EmbeddingProviderInterface::class, $this->getFakeProvider());
 
         // 1. Without --retry-failed, only pending should be processed
         Artisan::call('embeddings:generate');
@@ -104,6 +106,7 @@ class ImprovedEmbeddingGenerationTest extends TestCase
         $this->assertEquals(1, KnowledgeDocumentRecord::where('embedding_status', EmbeddingStatus::Failed)->count());
 
         // 2. With --retry-failed, both should be ready (the failed one and any new pending)
+        app()->instance(EmbeddingProviderInterface::class, $this->getFakeProvider());
         Artisan::call('embeddings:generate', ['--retry-failed' => true]);
         $this->assertEquals(2, KnowledgeDocumentRecord::where('embedding_status', EmbeddingStatus::Ready)->count());
         $this->assertEquals(0, KnowledgeDocumentRecord::where('embedding_status', EmbeddingStatus::Failed)->count());
@@ -112,6 +115,7 @@ class ImprovedEmbeddingGenerationTest extends TestCase
     public function test_success_updates_all_fields_and_clears_error(): void
     {
         config()->set('embeddings.dimensions', 1);
+        config()->set('embeddings.provider', 'dummy');
 
         $record = KnowledgeDocumentRecord::factory()->create([
             'embedding_status' => EmbeddingStatus::Failed,
@@ -126,6 +130,8 @@ class ImprovedEmbeddingGenerationTest extends TestCase
         $record->refresh();
         $this->assertEquals(EmbeddingStatus::Ready, $record->embedding_status);
         $this->assertEquals('improved-model', $record->embedding_model);
+        $this->assertEquals('dummy', $record->embedding_provider);
+        $this->assertEquals(1, $record->embedding_dimensions);
         $this->assertNotNull($record->embedded_at);
         $this->assertNull($record->embedding_error);
         $this->assertEquals([0.1], $record->embedding);

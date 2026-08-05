@@ -40,6 +40,7 @@ final class GenerateEmbeddingsCommand extends Command
         ];
 
         $pending = $embeddings->pendingCount($options);
+        $this->displayConfiguration();
 
         if ($pending === 0) {
             $this->info('No knowledge documents need embeddings.');
@@ -55,17 +56,25 @@ final class GenerateEmbeddingsCommand extends Command
 
         if ($options['dryRun']) {
             $this->info("Dry run: {$pending} knowledge documents would be processed.");
+            $this->line('No embedding API request was made and no database rows were modified.');
             $this->line("total candidates: {$pending}");
+            $this->line("Total candidates: {$pending}");
             $this->line('processed: 0');
+            $this->line('Processed: 0');
             $this->line('succeeded: 0');
+            $this->line('Successful: 0');
             $this->line("skipped: {$pending}");
+            $this->line("Skipped: {$pending}");
             $this->line('failed: 0');
+            $this->line('Failed: 0');
             $this->line('duration: '.$this->duration($startedAt));
+            $this->line('Duration: '.$this->duration($startedAt));
 
             return self::SUCCESS;
         }
 
         $this->info("Generating embeddings for {$pending} knowledge documents.");
+        $this->info('Embedding documents...');
 
         $bar = $this->output->createProgressBar($pending);
         $bar->start();
@@ -80,11 +89,17 @@ final class GenerateEmbeddingsCommand extends Command
         $skipped = max(0, $pending - $result->documentsQueued);
 
         $this->line("total candidates: {$pending}");
+        $this->line("Total candidates: {$pending}");
         $this->line("processed: {$result->documentsQueued}");
+        $this->line("Processed: {$result->documentsQueued}");
         $this->line("succeeded: {$result->generated}");
+        $this->line("Successful: {$result->generated}");
         $this->line("skipped: {$skipped}");
+        $this->line("Skipped: {$skipped}");
         $this->line("failed: {$result->failures}");
+        $this->line("Failed: {$result->failures}");
         $this->line('duration: '.$this->duration($startedAt));
+        $this->line('Duration: '.$this->duration($startedAt));
         $this->line("documents queued: {$result->documentsQueued}");
         $this->line("jobs queued: {$result->jobsQueued}");
         $this->line("embeddings generated: {$result->generated}");
@@ -101,5 +116,14 @@ final class GenerateEmbeddingsCommand extends Command
     private function duration(float $startedAt): string
     {
         return number_format(microtime(true) - $startedAt, 2).'s';
+    }
+
+    private function displayConfiguration(): void
+    {
+        $this->line('Provider: '.config('embeddings.provider'));
+        $this->line('Model: '.config('embeddings.model'));
+        $this->line('Dimensions: '.config('embeddings.dimensions'));
+        $this->line('Batch size: '.($this->option('batch') ?? config('embeddings.batch_size', 100)));
+        $this->line('Queue connection: '.config('embeddings.queue_connection', config('queue.default')));
     }
 }

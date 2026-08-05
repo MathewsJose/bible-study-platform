@@ -14,24 +14,45 @@ services:
       DB_USERNAME: ${DB_USERNAME:-knowledge}
       DB_PASSWORD: ${DB_PASSWORD:-knowledge_secret}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-}
-      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-1536}
       OPENAI_RETRY_ATTEMPTS: ${OPENAI_RETRY_ATTEMPTS:-3}
       OPENAI_RETRY_SLEEP_MS: ${OPENAI_RETRY_SLEEP_MS:-200}
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-dummy}
-      EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-${EMBEDDING_PROVIDER:-dummy}}
-      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-text-embedding-3-small}
-      EMBEDDINGS_DIMENSIONS: ${EMBEDDINGS_DIMENSIONS:-1536}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-local}
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      EMBEDDINGS_DIMENSIONS: ${EMBEDDINGS_DIMENSIONS:-384}
       EMBEDDINGS_BATCH_SIZE: ${EMBEDDINGS_BATCH_SIZE:-100}
       EMBEDDINGS_TIMEOUT: ${EMBEDDINGS_TIMEOUT:-30}
       EMBEDDINGS_RETRY_ATTEMPTS: ${EMBEDDINGS_RETRY_ATTEMPTS:-3}
       EMBEDDINGS_RETRY_SLEEP_MS: ${EMBEDDINGS_RETRY_SLEEP_MS:-200}
-      EMBEDDINGS_QUEUE_CONNECTION: ${EMBEDDINGS_QUEUE_CONNECTION:-database}
+      EMBEDDINGS_QUEUE_CONNECTION: ${EMBEDDINGS_QUEUE_CONNECTION:-sync}
+      LOCAL_EMBEDDING_URL: ${LOCAL_EMBEDDING_URL:-http://embedding-service:8000}
     depends_on:
       postgres:
         condition: service_healthy
+      embedding-service:
+        condition: service_healthy
     volumes:
       - .:/var/www/html
+    networks:
+      - knowledge
+
+  embedding-service:
+    build:
+      context: ./embedding-service
+      dockerfile: Dockerfile
+    environment:
+      LOCAL_EMBEDDING_MODEL: ${LOCAL_EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      LOCAL_EMBEDDING_DIMENSIONS: ${LOCAL_EMBEDDING_DIMENSIONS:-384}
+    volumes:
+      - embedding-model-cache:/models
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
     networks:
       - knowledge
 
@@ -83,6 +104,7 @@ services:
 volumes:
   postgres-data:
   pgadmin-data:
+  embedding-model-cache:
 
 networks:
   knowledge:

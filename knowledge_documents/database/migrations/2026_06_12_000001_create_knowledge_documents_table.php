@@ -32,7 +32,7 @@ return new class extends Migration
         });
 
         if (DB::getDriverName() === 'pgsql') {
-            DB::statement('ALTER TABLE knowledge_documents ADD COLUMN embedding vector(1536) NULL');
+            DB::statement('ALTER TABLE knowledge_documents ADD COLUMN embedding vector(384) NULL');
             DB::statement('CREATE INDEX knowledge_documents_metadata_gin ON knowledge_documents USING gin (metadata)');
             DB::statement("CREATE INDEX knowledge_documents_fts ON knowledge_documents USING gin (to_tsvector('english', title || ' ' || content || ' ' || reference))");
             DB::statement('CREATE INDEX knowledge_documents_embedding_hnsw ON knowledge_documents USING hnsw (embedding vector_cosine_ops)');

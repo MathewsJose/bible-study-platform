@@ -16,4 +16,8 @@ return [
         'api_key' => env('OPENAI_API_KEY', ''),
         'url' => env('OPENAI_EMBEDDINGS_URL', 'https://api.openai.com/v1/embeddings'),
     ],
+
+    'local' => [
+        'url' => env('LOCAL_EMBEDDING_URL', 'http://embedding-service:8000'),
+    ],
 ];

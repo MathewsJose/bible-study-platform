@@ -237,6 +237,147 @@ Troubleshooting:
 - PostgreSQL production search requires pgvector and stored vectors in the existing `embedding` column.
 - If jobs remain queued, run `php artisan queue:work` with the same connection configured by `EMBEDDINGS_QUEUE_CONNECTION`.
 
+## Real Embeddings
+
+Dummy embeddings were useful while building the pipeline because tests and local development could exercise pgvector storage without external API calls or cost. They are not semantically meaningful. A dummy vector for `John 1:14` does not encode that "the Word was made flesh" relates to the Incarnation, so vector and hybrid retrieval quality cannot be judged from dummy-model results.
+
+Production semantic retrieval can use either local open-source embeddings or OpenAI embeddings. Local embeddings are the recommended no-cost development path when OpenAI API credits are unavailable.
+
+```env
+EMBEDDING_PROVIDER=local
+EMBEDDINGS_PROVIDER=local
+EMBEDDINGS_MODEL=sentence-transformers/all-MiniLM-L6-v2
+EMBEDDINGS_DIMENSIONS=384
+LOCAL_EMBEDDING_URL=http://embedding-service:8000
+LOCAL_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+LOCAL_EMBEDDING_DIMENSIONS=384
+EMBEDDINGS_QUEUE_CONNECTION=sync
+```
+
+The local model is `sentence-transformers/all-MiniLM-L6-v2`. It is an English Sentence Transformers model for sentence similarity and semantic search, uses the Apache 2.0 license, and outputs `384` dimensions. The PostgreSQL column is therefore `vector(384)` in the local embedding profile. Existing dummy or OpenAI vectors are not compatible with this model and must be regenerated.
+
+OpenAI remains available:
+
+```env
+EMBEDDING_PROVIDER=openai
+EMBEDDINGS_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+EMBEDDINGS_MODEL=text-embedding-3-small
+EMBEDDINGS_DIMENSIONS=1536
+```
+
+Never commit `OPENAI_API_KEY`, print it, or paste it into logs. Switching between providers with different vector dimensions requires a compatible pgvector column and a full re-index.
+
+## Local Embeddings
+
+The local embedding service is a small FastAPI application under `embedding-service/`. It is the only Python component. Laravel remains the main backend, PostgreSQL + pgvector remains the vector database, and the provider abstraction keeps the application independent from a specific embedding vendor.
+
+Docker architecture:
+
+- `app`: Laravel API and Artisan commands.
+- `postgres`: PostgreSQL 17 with pgvector.
+- `embedding-service`: CPU-only FastAPI + Sentence Transformers model server.
+- `embedding-model-cache`: named Docker volume mounted at `/models` so model files are reused after the first download.
+
+The local service exposes only the internal Docker network endpoint:
+
+```http
+GET http://embedding-service:8000/health
+POST http://embedding-service:8000/embed
+```
+
+Example embedding request:
+
+```json
+{
+  "texts": [
+    "Why did Jesus become man?",
+    "The Word became flesh for us in order to save us."
+  ]
+}
+```
+
+Example response:
+
+```json
+{
+  "embeddings": [[0.0123, -0.0345]],
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "dimensions": 384
+}
+```
+
+CPU inference is slower than GPU inference but works on normal development machines. GPU support can be added later as an optimization; it is not required.
+
+Check the provider before writing embeddings:
+
+```bash
+php artisan embeddings:health
+```
+
+Expected shape:
+
+```text
+Embedding Provider Health
+Provider: local
+Model: sentence-transformers/all-MiniLM-L6-v2
+Dimensions: 384
+API Key: not required
+API Connection: OK
+Model loaded: YES
+
+Database Embeddings
+Total: 59
+With embeddings: 59
+Without embeddings: 0
+Embedding Model | Count
+sentence-transformers/all-MiniLM-L6-v2 | 59
+```
+
+Cost-safe test run:
+
+```bash
+php artisan embeddings:generate --force --limit=5 --dry-run
+php artisan embeddings:generate --force --limit=5
+```
+
+Full re-index:
+
+```bash
+php artisan embeddings:generate --force
+```
+
+`--force` replaces the existing vector and metadata on each selected document. It does not create duplicate `KnowledgeDocument` rows. Running it again is idempotent, but it will call the provider again, so use `--limit` and `--dry-run` before a full run.
+
+Changing embedding models requires re-embedding the whole compatible dataset. Documents and queries must use the same model because vector distance only has meaning inside the same embedding space. Mixing `dummy-model`, `text-embedding-3-small`, and `sentence-transformers/all-MiniLM-L6-v2` vectors makes semantic search compare unrelated coordinate systems.
+
+Project examples:
+
+- Bible verses are often short. `John 1:16` may contain only a brief phrase about grace, so the embedding needs the real language signal; a dummy vector cannot connect "What is grace?" to that verse.
+- Catechism paragraphs such as `CCC 456` contain doctrinal explanations. Real embeddings can connect "Why did the Word become flesh?" to "The Word became flesh for us..." even when the wording is not identical.
+- Church Father passages can use older theological language. A real embedding model can place "Augustine and grace" near related patristic content better than exact keyword matching alone.
+
+Embedding generation is separated from search because it is slower, can fail independently, costs money, and should run offline through queues. Search should only read already prepared vectors. API failures such as timeouts, 429 rate limits, and 5xx responses are retried with backoff; permanent configuration problems such as a missing key fail clearly.
+
+Local verification workflow:
+
+```bash
+docker compose build
+docker compose up -d
+docker compose ps embedding-service
+docker compose exec embedding-service python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').read().decode())"
+docker compose exec app php artisan embeddings:health
+docker compose exec app php artisan embeddings:generate --force --limit=5 --dry-run
+docker compose exec app php artisan embeddings:generate --force --limit=5
+docker compose exec app php artisan retrieval:health
+docker compose exec app php artisan evaluate:retrieval --strategy=vector --top-k=5
+docker compose exec app php artisan evaluate:retrieval --strategy=hybrid --top-k=5
+docker compose exec app php artisan embeddings:generate --force
+docker compose exec app php artisan evaluate:retrieval --top-k=5 --compare
+```
+
 ## Retrieval Evaluation
 
 Retrieval evaluation measures whether semantic search returns the Catholic sources we expected before any future LLM answer generation is added. This matters because RAG quality depends first on retrieval quality: if the system fails to retrieve `CCC 457` or `John 1:14` for "Why did Jesus become man?", a later answer generator will be grounded in the wrong material.
@@ -270,6 +411,28 @@ php artisan evaluate:retrieval --strategy=hybrid
 php artisan evaluate:retrieval --compare
 php artisan evaluate:retrieval --weight-grid
 ```
+
+Diagnostic commands:
+
+```bash
+php artisan evaluate:diagnose
+php artisan evaluate:diagnose --question-id=UUID
+php artisan evaluate:diagnose --strategy=vector
+php artisan evaluate:diagnose --top-k=10
+php artisan retrieval:health
+```
+
+`evaluate:diagnose` does not change retrieval behavior. It prints each evaluation question, expected references, whether those references exist, source types, content lengths, query embedding dimensions, and the top ranked vector, lexical, and hybrid results with expected-hit markers.
+
+`retrieval:health` summarizes knowledge document counts, embedding coverage, content length quality, vector and lexical index status, current evaluation metrics, and evidence-based potential problems. Use it before tuning weights, changing chunking, or changing embedding models.
+
+How to interpret common findings:
+
+- Low embedding coverage means vector and hybrid search cannot retrieve all documents.
+- Very short chunks can lack enough semantic context for embeddings.
+- Multiple embedding dimensions or models indicate the vector index contains inconsistent data.
+- Lexical outperforming vector usually means exact references, source names, or theological terms are carrying more signal than the current embeddings.
+- Hybrid precision below lexical precision usually means vector candidates are diluting strong lexical matches, not necessarily that the embedding model is wrong.
 
 API evaluation endpoint:
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Infrastructure\Knowledge\Embedding\OpenAIEmbeddingProvider;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -52,3 +53,49 @@ it('requires an OpenAI API key', function (): void {
 
     app(OpenAIEmbeddingProvider::class)->embed('text');
 })->throws(RuntimeException::class, 'OPENAI_API_KEY is not configured.');
+
+it('does not retry permanent OpenAI authentication failures', function (): void {
+    Http::preventStrayRequests();
+
+    config()->set('embeddings.openai.api_key', 'test-key');
+    config()->set('embeddings.model', 'configured-embedding-model');
+    config()->set('embeddings.dimensions', 3);
+    config()->set('embeddings.retry_attempts', 3);
+    config()->set('embeddings.retry_sleep_ms', 0);
+
+    Http::fake([
+        'https://api.openai.com/v1/embeddings' => Http::response(['error' => ['message' => 'unauthorized']], 401),
+    ]);
+
+    try {
+        app(OpenAIEmbeddingProvider::class)->embed('text');
+        $this->fail('Expected OpenAI request to fail.');
+    } catch (RequestException) {
+        //
+    }
+
+    Http::assertSentCount(1);
+});
+
+it('retries transient OpenAI failures before failing', function (): void {
+    Http::preventStrayRequests();
+
+    config()->set('embeddings.openai.api_key', 'test-key');
+    config()->set('embeddings.model', 'configured-embedding-model');
+    config()->set('embeddings.dimensions', 3);
+    config()->set('embeddings.retry_attempts', 2);
+    config()->set('embeddings.retry_sleep_ms', 0);
+
+    Http::fake([
+        'https://api.openai.com/v1/embeddings' => Http::response(['error' => ['message' => 'rate limited']], 429),
+    ]);
+
+    try {
+        app(OpenAIEmbeddingProvider::class)->embed('text');
+        $this->fail('Expected OpenAI request to fail.');
+    } catch (RequestException) {
+        //
+    }
+
+    Http::assertSentCount(2);
+});

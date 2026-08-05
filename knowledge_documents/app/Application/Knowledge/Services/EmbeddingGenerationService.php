@@ -137,8 +137,15 @@ final readonly class EmbeddingGenerationService
                     throw new InvalidEmbeddingVectorException('Embedding generation returned no vector.');
                 }
 
-                $this->vectors->validate(array_values($vector));
-                $this->embeddings->storeEmbedding($document->id, array_values($vector), $this->provider->identifier());
+                $vector = array_values($vector);
+                $this->vectors->validate($vector);
+                $this->embeddings->storeEmbedding(
+                    documentId: $document->id,
+                    embedding: $vector,
+                    provider: (string) config('embeddings.provider', 'null'),
+                    model: $this->provider->identifier(),
+                    dimensions: count($vector),
+                );
                 $generated++;
             } catch (Throwable $exception) {
                 $failures++;

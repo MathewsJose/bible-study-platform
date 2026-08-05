@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Infrastructure\Knowledge\Embedding;
 
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
+use Exception;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Arr;
 use RuntimeException;
@@ -61,7 +64,8 @@ final readonly class OpenAIEmbeddingProvider implements EmbeddingProviderInterfa
         $response = $this->http
             ->retry(
                 (int) config('embeddings.retry_attempts', 3),
-                (int) config('embeddings.retry_sleep_ms', 200),
+                fn (int $attempt): int => $this->retryDelay($attempt),
+                fn (Exception $exception, PendingRequest $request): bool => $this->shouldRetry($exception),
             )
             ->timeout((int) config('embeddings.timeout', 30))
             ->connectTimeout(min(10, (int) config('embeddings.timeout', 30)))
@@ -98,5 +102,27 @@ final readonly class OpenAIEmbeddingProvider implements EmbeddingProviderInterfa
     public function identifier(): string
     {
         return (string) config('embeddings.model');
+    }
+
+    private function retryDelay(int $attempt): int
+    {
+        $baseSleepMs = max(1, (int) config('embeddings.retry_sleep_ms', 200));
+
+        return $baseSleepMs * (2 ** max(0, $attempt - 1));
+    }
+
+    private function shouldRetry(Exception $exception): bool
+    {
+        if ($exception instanceof ConnectionException) {
+            return true;
+        }
+
+        if (! $exception instanceof RequestException) {
+            return false;
+        }
+
+        $status = $exception->response->status();
+
+        return $status === 429 || $status >= 500;
     }
 }

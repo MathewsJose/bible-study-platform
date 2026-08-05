@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property list<float>|string|null $embedding
  * @property string $embedding_status
  * @property string|null $embedding_model
+ * @property string|null $embedding_provider
+ * @property int|null $embedding_dimensions
  * @property \DateTimeImmutable|null $embedded_at
  * @property string|null $embedding_error
  */
@@ -51,6 +53,8 @@ final class KnowledgeDocumentRecord extends Model
         'embedding',
         'embedding_status',
         'embedding_model',
+        'embedding_provider',
+        'embedding_dimensions',
         'embedded_at',
         'embedding_error',
     ];
@@ -61,6 +65,7 @@ final class KnowledgeDocumentRecord extends Model
         return [
             'metadata' => 'array',
             'embedding_status' => EmbeddingStatus::class,
+            'embedding_dimensions' => 'integer',
             'embedded_at' => 'immutable_datetime',
             'embedding' => 'array',
         ];

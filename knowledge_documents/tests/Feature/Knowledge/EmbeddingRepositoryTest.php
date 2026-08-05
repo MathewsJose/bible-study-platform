@@ -26,8 +26,8 @@ it('stores embeddings and performs filtered semantic search with the local fallb
         'reference' => 'John 1:1',
     ]);
 
-    $repository->storeEmbedding($matching->id, [1.0, 0.0, 0.0], 'test-model');
-    $repository->storeEmbedding($other->id, [0.0, 1.0, 0.0], 'test-model');
+    $repository->storeEmbedding($matching->id, [1.0, 0.0, 0.0], 'local', 'test-model', 3);
+    $repository->storeEmbedding($other->id, [0.0, 1.0, 0.0], 'local', 'test-model', 3);
 
     $results = $repository->semanticSearch([1.0, 0.0, 0.0], 10, 0.1, [
         'source_types' => [SourceType::Catechism->value],
@@ -38,5 +38,8 @@ it('stores embeddings and performs filtered semantic search with the local fallb
     expect($results)->toHaveCount(1)
         ->and($results[0]['record']->reference)->toBe('CCC 457')
         ->and($results[0]['record']->embedding_status)->toBe(EmbeddingStatus::Ready)
+        ->and($results[0]['record']->embedding_provider)->toBe('local')
+        ->and($results[0]['record']->embedding_model)->toBe('test-model')
+        ->and($results[0]['record']->embedding_dimensions)->toBe(3)
         ->and($results[0]['score'])->toBe(1.0);
 });
