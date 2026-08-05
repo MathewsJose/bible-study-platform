@@ -11,19 +11,32 @@ use Illuminate\Console\Command;
 
 final class EvaluateRetrievalCommand extends Command
 {
-    protected $signature = 'evaluate
+    protected $signature = 'evaluate:retrieval
                             {--top-k=5 : Number of documents to retrieve for each question}
                             {--minimum-score= : Minimum semantic similarity score}
+                            {--strategy=vector : Retrieval strategy: vector, lexical, or hybrid}
                             {--question-id= : Evaluate one question UUID}
                             {--category= : Evaluate questions in one category}
                             {--limit= : Limit number of questions}
-                            {--save : Persist detailed runs and summary}';
+                            {--save : Persist detailed runs and summary}
+                            {--compare : Compare vector, lexical, and hybrid strategies}
+                            {--weight-grid : Evaluate hybrid weights 0.8/0.2, 0.7/0.3, and 0.6/0.4}';
 
-    protected $description = 'Evaluate semantic retrieval against stored Catholic knowledge questions.';
+    /** @var list<string> */
+    protected $aliases = ['evaluate'];
+
+    protected $description = 'Evaluate vector, lexical, and hybrid retrieval against stored Catholic knowledge questions.';
 
     public function handle(RetrievalEvaluationService $evaluations): int
     {
         $options = $this->evaluationOptions();
+
+        if (! in_array($options['strategy'], ['vector', 'lexical', 'hybrid'], true)) {
+            $this->error('Invalid retrieval strategy. Use vector, lexical, or hybrid.');
+
+            return self::FAILURE;
+        }
+
         $validation = $evaluations->validateDataset($options);
 
         $this->displayDatasetValidation($validation);
@@ -44,6 +57,18 @@ final class EvaluateRetrievalCommand extends Command
         $this->info('Retrieval Evaluation');
         $this->line('Questions: '.$validation->validQuestions);
         $this->line('Top K: '.$options['topK']);
+
+        if ($this->option('compare')) {
+            $this->displayComparison($evaluations->compare($options), $options['topK']);
+
+            return $validation->isValid() ? self::SUCCESS : self::FAILURE;
+        }
+
+        if ($this->option('weight-grid')) {
+            $this->displayComparison($evaluations->weightGrid($options), $options['topK']);
+
+            return $validation->isValid() ? self::SUCCESS : self::FAILURE;
+        }
 
         $summary = $evaluations->evaluate($options);
 
@@ -69,11 +94,37 @@ final class EvaluateRetrievalCommand extends Command
         return [
             'topK' => (int) $this->option('top-k'),
             'minimumScore' => $this->option('minimum-score') === null ? null : (float) $this->option('minimum-score'),
+            'strategy' => (string) $this->option('strategy'),
             'questionId' => $this->option('question-id'),
             'category' => $this->option('category'),
             'limit' => $this->option('limit') === null ? null : (int) $this->option('limit'),
             'save' => (bool) $this->option('save'),
         ];
+    }
+
+    /**
+     * @param  array<string, \App\Application\Knowledge\DTOs\RetrievalEvaluationSummary>  $summaries
+     */
+    private function displayComparison(array $summaries, int $topK): void
+    {
+        $this->newLine();
+        $this->info('Retrieval Strategy Comparison');
+
+        $this->table(
+            ['Strategy', "Hit@{$topK}", "Precision@{$topK}", "Recall@{$topK}", 'MRR', 'Avg Latency'],
+            array_map(
+                static fn (string $strategy, $summary): array => [
+                    $strategy,
+                    number_format($summary->hitRate * 100, 1).'%',
+                    number_format($summary->meanPrecision, 3),
+                    number_format($summary->meanRecall, 3),
+                    number_format($summary->mrr, 3),
+                    $summary->averageLatencyMs.' ms',
+                ],
+                array_keys($summaries),
+                array_values($summaries),
+            ),
+        );
     }
 
     private function displayDatasetValidation(EvaluationDatasetValidationResult $validation): void

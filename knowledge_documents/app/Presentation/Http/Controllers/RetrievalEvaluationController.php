@@ -18,6 +18,7 @@ final class RetrievalEvaluationController extends Controller
         $summary = $this->evaluations->evaluate([
             'topK' => (int) $request->integer('top_k', 5),
             'minimumScore' => $request->validated('minimum_score'),
+            'strategy' => $request->validated('strategy') ?? 'vector',
             'questionId' => $request->validated('question_id'),
             'category' => $request->validated('category'),
             'limit' => $request->validated('limit'),

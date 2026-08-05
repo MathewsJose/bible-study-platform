@@ -18,6 +18,8 @@ class HybridSearchTest extends TestCase
     public function test_hybrid_search_combines_and_ranks_results(): void
     {
         config()->set('embeddings.dimensions', 1);
+        config()->set('retrieval.hybrid.vector_weight', 0.70);
+        config()->set('retrieval.hybrid.lexical_weight', 0.30);
 
         $doc1 = KnowledgeDocumentRecord::factory()->create(['reference' => 'Doc 1', 'source_name' => 'Other']);
         $doc2 = KnowledgeDocumentRecord::factory()->create(['reference' => 'Doc 2', 'source_name' => 'Douay-Rheims Bible']);
@@ -34,9 +36,9 @@ class HybridSearchTest extends TestCase
         app()->instance(EmbeddingRepositoryInterface::class, $mockEmbeddingRepo);
         app()->instance(EmbeddingProviderInterface::class, $embeddingProvider);
 
-        // Doc 1 has high full-text score, low semantic
-        // Doc 2 has low full-text score, high semantic + priority boost
-        
+        // Doc 1 has high lexical score, low vector score.
+        // Doc 2 has low lexical score and high vector score.
+
         $mockRepo->shouldReceive('fullTextSearch')
             ->once()
             ->andReturn([
@@ -58,27 +60,37 @@ class HybridSearchTest extends TestCase
         $response->assertOk()
             ->assertJsonCount(2, 'data');
 
-        // Weights: semantic 0.65, full-text 0.25, priority 0.10
-        // Doc 1 Score: (0.2 * 0.65) + (1.0 * 0.25) + (0 * 0.10) = 0.13 + 0.25 = 0.38
-        // Doc 2 Score: (0.9 * 0.65) + (0.1 * 0.25) + (1 * 0.10) = 0.585 + 0.025 + 0.10 = 0.71
-        
-        $response->assertJsonPath('data.0.document.reference', 'Doc 2')
-            ->assertJsonPath('data.0.score', 0.71)
-            ->assertJsonPath('data.1.document.reference', 'Doc 1')
-            ->assertJsonPath('data.1.score', 0.38);
-            
+        $response->assertJsonPath('data.0.reference', 'Doc 2')
+            ->assertJsonPath('data.0.vector_score', 1)
+            ->assertJsonPath('data.0.lexical_score', 0.1)
+            ->assertJsonPath('data.0.combined_score', 0.73)
+            ->assertJsonPath('data.1.reference', 'Doc 1')
+            ->assertJsonPath('data.1.vector_score', 0.222222)
+            ->assertJsonPath('data.1.lexical_score', 1)
+            ->assertJsonPath('data.1.combined_score', 0.455555);
+
         $response->assertJsonStructure([
             'data' => [
                 '*' => [
-                    'document',
-                    'score',
-                    'score_breakdown' => [
-                        'semantic',
-                        'full_text',
-                        'source_priority',
-                    ]
-                ]
-            ]
+                    'id',
+                    'source_type',
+                    'source_name',
+                    'tradition',
+                    'reference',
+                    'title',
+                    'content',
+                    'vector_score',
+                    'lexical_score',
+                    'combined_score',
+                ],
+            ],
+            'meta' => [
+                'top_k',
+                'total',
+                'minimum_score',
+                'vector_weight',
+                'lexical_weight',
+            ],
         ]);
     }
 }

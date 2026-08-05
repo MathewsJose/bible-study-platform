@@ -97,9 +97,10 @@ it('validates retrieval evaluation API input', function (): void {
         'minimum_score' => 2,
         'question_id' => 'not-a-uuid',
         'limit' => 0,
+        'strategy' => 'invalid',
     ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['top_k', 'minimum_score', 'question_id', 'limit']);
+        ->assertJsonValidationErrors(['top_k', 'minimum_score', 'question_id', 'limit', 'strategy']);
 });
 
 it('runs retrieval evaluation from artisan and reports failures', function (): void {
@@ -130,4 +131,68 @@ it('runs retrieval evaluation from artisan and reports failures', function (): v
         ->and($output)->toContain('Retrieval failures:')
         ->and($output)->toContain('Expected: CCC 457')
         ->and($expected->reference)->toBe('CCC 457');
+});
+
+it('compares retrieval strategies from artisan', function (): void {
+    config()->set('embeddings.dimensions', 3);
+
+    $expected = KnowledgeDocumentRecord::factory()->create([
+        'reference' => 'CCC 457',
+        'title' => 'Why the Word became Flesh',
+        'content' => 'The Word became flesh for us in order to save us by reconciling us with God.',
+    ]);
+
+    EvaluationQuestionRecord::factory()->create([
+        'question' => 'Why did Jesus become man?',
+        'expected_references' => ['CCC 457'],
+    ]);
+
+    $repository = new FeatureEvaluationEmbeddingRepository();
+    $repository->results = [
+        ['record' => $expected, 'score' => 0.95],
+    ];
+
+    app()->instance(EmbeddingProviderInterface::class, new FeatureEvaluationEmbeddingProvider());
+    app()->instance(EmbeddingRepositoryInterface::class, $repository);
+
+    $status = Artisan::call('evaluate:retrieval', ['--top-k' => 1, '--compare' => true]);
+    $output = Artisan::output();
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('Retrieval Strategy Comparison')
+        ->and($output)->toContain('vector')
+        ->and($output)->toContain('lexical')
+        ->and($output)->toContain('hybrid');
+});
+
+it('runs the hybrid weight grid from artisan', function (): void {
+    config()->set('embeddings.dimensions', 3);
+
+    $expected = KnowledgeDocumentRecord::factory()->create([
+        'reference' => 'CCC 457',
+        'title' => 'Why the Word became Flesh',
+        'content' => 'The Word became flesh for us in order to save us by reconciling us with God.',
+    ]);
+
+    EvaluationQuestionRecord::factory()->create([
+        'question' => 'Why did Jesus become man?',
+        'expected_references' => ['CCC 457'],
+    ]);
+
+    $repository = new FeatureEvaluationEmbeddingRepository();
+    $repository->results = [
+        ['record' => $expected, 'score' => 0.95],
+    ];
+
+    app()->instance(EmbeddingProviderInterface::class, new FeatureEvaluationEmbeddingProvider());
+    app()->instance(EmbeddingRepositoryInterface::class, $repository);
+
+    $status = Artisan::call('evaluate:retrieval', ['--top-k' => 1, '--weight-grid' => true]);
+    $output = Artisan::output();
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('Retrieval Strategy Comparison')
+        ->and($output)->toContain('vector 0.8 / lexical 0.2')
+        ->and($output)->toContain('vector 0.7 / lexical 0.3')
+        ->and($output)->toContain('vector 0.6 / lexical 0.4');
 });

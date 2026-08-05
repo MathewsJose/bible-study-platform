@@ -23,6 +23,7 @@ final class RetrievalEvaluationRunRecordFactory extends Factory
             'query' => 'Why did Jesus become man?',
             'top_k' => 5,
             'minimum_score' => 0.7,
+            'retrieval_strategy' => 'vector',
             'retrieved_results' => [],
             'expected_references' => ['CCC 457'],
             'hit' => false,

@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
 use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
+use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Application\Knowledge\Services\EmbeddingVectorValidator;
+use App\Application\Knowledge\Services\HybridSearchService;
+use App\Application\Knowledge\Services\LexicalSearchService;
 use App\Application\Knowledge\Services\RetrievalEvaluationService;
 use App\Application\Knowledge\Services\SemanticSearchService;
+use App\Application\Knowledge\Services\WeightedScoreFusionStrategy;
 use App\Infrastructure\Knowledge\Persistence\EvaluationQuestionRecord;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -66,15 +70,28 @@ final class EvaluationEmbeddingRepository implements EmbeddingRepositoryInterfac
 function evaluationServiceWithResults(array $results): RetrievalEvaluationService
 {
     config()->set('embeddings.dimensions', 3);
+    config()->set('retrieval.hybrid.vector_weight', 0.7);
+    config()->set('retrieval.hybrid.lexical_weight', 0.3);
 
-    $repository = new EvaluationEmbeddingRepository();
-    $repository->results = $results;
-
-    return new RetrievalEvaluationService(new SemanticSearchService(
-        new EvaluationEmbeddingProvider(),
-        $repository,
+    $embeddingRepository = new EvaluationEmbeddingRepository();
+    $embeddingRepository->results = $results;
+    $embeddingProvider = new EvaluationEmbeddingProvider();
+    $semanticSearch = new SemanticSearchService(
+        $embeddingProvider,
+        $embeddingRepository,
         new EmbeddingVectorValidator(),
-    ));
+    );
+
+    $documentRepository = \Mockery::mock(KnowledgeDocumentRepositoryInterface::class);
+    $documentRepository->shouldReceive('fullTextSearch')->byDefault()->andReturn($results);
+
+    $lexicalSearch = new LexicalSearchService($documentRepository);
+
+    return new RetrievalEvaluationService(
+        $semanticSearch,
+        $lexicalSearch,
+        new HybridSearchService($lexicalSearch, $semanticSearch, new WeightedScoreFusionStrategy()),
+    );
 }
 
 it('calculates hit precision recall and reciprocal rank for partial results', function (): void {
@@ -181,5 +198,24 @@ it('summarizes mean metrics and persists runs when requested', function (): void
         ->and($summary->meanRecall)->toBe(0.5)
         ->and($summary->mrr)->toBe(0.5)
         ->and(DB::table('retrieval_evaluation_runs')->count())->toBe(2)
+        ->and(DB::table('retrieval_evaluation_runs')->value('retrieval_strategy'))->toBe('vector')
         ->and(DB::table('retrieval_evaluation_summaries')->count())->toBe(1);
+});
+
+it('compares vector lexical and hybrid retrieval strategies', function (): void {
+    $ccc457 = KnowledgeDocumentRecord::factory()->create(['reference' => 'CCC 457']);
+
+    EvaluationQuestionRecord::factory()->create([
+        'question' => 'Why did Jesus become man?',
+        'expected_references' => ['CCC 457'],
+    ]);
+
+    $summaries = evaluationServiceWithResults([
+        ['record' => $ccc457, 'score' => 0.9],
+    ])->compare(['topK' => 1, 'minimumScore' => 0.0]);
+
+    expect(array_keys($summaries))->toBe(['vector', 'lexical', 'hybrid'])
+        ->and($summaries['vector']->hitRate)->toBe(1.0)
+        ->and($summaries['lexical']->hitRate)->toBe(1.0)
+        ->and($summaries['hybrid']->configuration['retrieval'])->toBe('hybrid');
 });

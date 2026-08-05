@@ -7,6 +7,8 @@ namespace App\Providers;
 use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
 use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
+use App\Application\Knowledge\Contracts\ResultFusionStrategyInterface;
+use App\Application\Knowledge\Services\WeightedScoreFusionStrategy;
 use App\Infrastructure\Knowledge\Embedding\DummyEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\NullEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\OpenAIEmbeddingProvider;
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(KnowledgeDocumentRepositoryInterface::class, EloquentKnowledgeDocumentRepository::class);
         $this->app->bind(EmbeddingRepositoryInterface::class, EloquentEmbeddingRepository::class);
+        $this->app->bind(ResultFusionStrategyInterface::class, WeightedScoreFusionStrategy::class);
         $this->app->bind(EmbeddingProviderInterface::class, $this->embeddingProviderClass());
     }
 

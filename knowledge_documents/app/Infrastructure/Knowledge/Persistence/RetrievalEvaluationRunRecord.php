@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $query
  * @property int $top_k
  * @property float|null $minimum_score
+ * @property string $retrieval_strategy
  * @property list<array<string, mixed>> $retrieved_results
  * @property list<string> $expected_references
  * @property bool $hit
@@ -46,6 +47,7 @@ final class RetrievalEvaluationRunRecord extends Model
         'query',
         'top_k',
         'minimum_score',
+        'retrieval_strategy',
         'retrieved_results',
         'expected_references',
         'hit',
@@ -61,6 +63,7 @@ final class RetrievalEvaluationRunRecord extends Model
         return [
             'top_k' => 'integer',
             'minimum_score' => 'float',
+            'retrieval_strategy' => 'string',
             'retrieved_results' => 'array',
             'expected_references' => 'array',
             'hit' => 'boolean',

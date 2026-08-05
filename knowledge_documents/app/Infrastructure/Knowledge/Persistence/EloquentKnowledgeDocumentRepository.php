@@ -65,7 +65,9 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
             return array_values($this->applySearchFilters(KnowledgeDocumentRecord::query(), $filters)
                 ->where(function (Builder $queryBuilder) use ($query) {
                     $queryBuilder->where('title', 'like', "%{$query}%")
-                        ->orWhere('content', 'like', "%{$query}%");
+                        ->orWhere('content', 'like', "%{$query}%")
+                        ->orWhere('reference', 'like', "%{$query}%")
+                        ->orWhere('source_name', 'like', "%{$query}%");
                 })
                 ->limit($limit)
                 ->get()
@@ -73,10 +75,27 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
                 ->all());
         }
 
+        $likeQuery = "%{$query}%";
+
         return array_values($this->applySearchFilters(KnowledgeDocumentRecord::query(), $filters)
             ->select('knowledge_documents.*')
-            ->selectRaw("ts_rank(to_tsvector('english', title || ' ' || content || ' ' || reference), plainto_tsquery('english', ?)) as rank", [$query])
-            ->whereRaw("to_tsvector('english', title || ' ' || content || ' ' || reference) @@ plainto_tsquery('english', ?)", [$query])
+            ->selectRaw(
+                <<<'SQL'
+                (
+                    ts_rank_cd(search_vector, websearch_to_tsquery('english', ?))
+                    + case when lower(reference) = lower(?) then 10 else 0 end
+                    + case when lower(reference) like lower(?) then 5 else 0 end
+                    + case when lower(source_name) like lower(?) then 2 else 0 end
+                ) as rank
+                SQL,
+                [$query, $query, $likeQuery, $likeQuery],
+            )
+            ->where(function (Builder $queryBuilder) use ($query, $likeQuery): void {
+                $queryBuilder
+                    ->whereRaw("search_vector @@ websearch_to_tsquery('english', ?)", [$query])
+                    ->orWhere('reference', 'ilike', $likeQuery)
+                    ->orWhere('source_name', 'ilike', $likeQuery);
+            })
             ->orderByDesc('rank')
             ->limit($limit)
             ->get()
@@ -90,6 +109,7 @@ final class EloquentKnowledgeDocumentRepository implements KnowledgeDocumentRepo
 
         return $query
             ->when($filters['source_type'] ?? null, fn (Builder $q, string $v) => $q->where('source_type', $v))
+            ->when($filters['source_types'] ?? null, fn (Builder $q, array $v) => $q->whereIn('source_type', $v))
             ->when($filters['source_name'] ?? null, fn (Builder $q, string $v) => $q->where('source_name', $v))
             ->when($filters['tradition'] ?? null, fn (Builder $q, string $v) => $q->where('tradition', $v))
             ->when($filters['book'] ?? null, function (Builder $q, string $v) use ($driver) {

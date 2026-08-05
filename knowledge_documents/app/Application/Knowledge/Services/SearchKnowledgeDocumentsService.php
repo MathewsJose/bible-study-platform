@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Application\Knowledge\Services;
 
-use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
-use App\Application\Knowledge\DTOs\KnowledgeDocumentData;
 use App\Application\Knowledge\DTOs\RankedKnowledgeDocumentData;
 
 final readonly class SearchKnowledgeDocumentsService
 {
-    public function __construct(private KnowledgeDocumentRepositoryInterface $documents) {}
+    public function __construct(private LexicalSearchService $lexicalSearch) {}
 
     /**
      * @param  array<string, mixed>  $filters
@@ -18,12 +16,6 @@ final readonly class SearchKnowledgeDocumentsService
      */
     public function fullText(string $query, int $limit, array $filters = []): array
     {
-        return array_map(
-            static fn (array $result): RankedKnowledgeDocumentData => new RankedKnowledgeDocumentData(
-                document: KnowledgeDocumentData::fromRecord($result['record']),
-                score: $result['score'],
-            ),
-            $this->documents->fullTextSearch($query, $limit, $filters),
-        );
+        return $this->lexicalSearch->search($query, $limit, $filters);
     }
 }

@@ -138,9 +138,9 @@ final class KnowledgeDocumentController extends Controller
 
     public function hybridSearch(SearchKnowledgeDocumentsRequest $request): JsonResponse
     {
-        $limit = (int) $request->integer('limit', (int) config('knowledge.semantic_search.limit', 10));
-        $threshold = (float) ($request->validated('score_threshold') ?? config('knowledge.semantic_search.score_threshold', 0.0));
-        $filters = $request->safe()->only(['source_type', 'source_name', 'tradition', 'book', 'chapter']);
+        $limit = (int) ($request->validated('top_k') ?? $request->integer('limit', (int) config('knowledge.semantic_search.limit', 10)));
+        $threshold = (float) ($request->validated('minimum_score') ?? $request->validated('score_threshold') ?? config('retrieval.hybrid.minimum_score', 0.0));
+        $filters = $request->safe()->only(['source_type', 'source_types', 'source_name', 'tradition', 'book', 'chapter']);
 
         try {
             $results = $this->hybridSearch->search(
@@ -160,10 +160,17 @@ final class KnowledgeDocumentController extends Controller
         }
 
         return response()->json([
-            'data' => array_map(
+            'data' => array_values(array_map(
                 static fn (HybridRankedKnowledgeDocumentData $result): array => $result->toArray(),
                 $results,
-            ),
+            )),
+            'meta' => [
+                'top_k' => $limit,
+                'total' => count($results),
+                'minimum_score' => $threshold,
+                'vector_weight' => (float) config('retrieval.hybrid.vector_weight', 0.70),
+                'lexical_weight' => (float) config('retrieval.hybrid.lexical_weight', 0.30),
+            ],
         ]);
     }
 }

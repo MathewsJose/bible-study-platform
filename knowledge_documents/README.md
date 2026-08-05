@@ -69,6 +69,7 @@ http://localhost:5050
 - `GET /api/documents`
 - `POST /api/documents/search`
 - `POST /api/documents/semantic-search`
+- `POST /api/documents/hybrid-search`
 
 Semantic search uses `EmbeddingProviderInterface` and `EmbeddingRepositoryInterface`. Providers are selected through configuration, so OpenAI, Gemini, Ollama, or local sentence-transformer adapters can be added without changing generation or search business logic.
 
@@ -80,6 +81,55 @@ Example semantic search request:
   "top_k": 10,
   "source_types": ["catechism", "bible_verse"],
   "minimum_score": 0.4
+}
+```
+
+Hybrid search combines vector similarity with PostgreSQL lexical ranking. It normalizes each candidate list to a `0..1` range, applies configured weights, deduplicates documents, and returns a combined score plus score breakdowns.
+
+```env
+HYBRID_VECTOR_WEIGHT=0.70
+HYBRID_LEXICAL_WEIGHT=0.30
+HYBRID_FETCH_MULTIPLIER=3
+HYBRID_MINIMUM_SCORE=0.0
+```
+
+Example hybrid search request:
+
+```json
+{
+  "query": "Why did Jesus become man?",
+  "top_k": 10,
+  "minimum_score": 0.1,
+  "source_types": ["catechism", "bible_verse"],
+  "tradition": "catholic"
+}
+```
+
+Example hybrid search response:
+
+```json
+{
+  "data": [
+    {
+      "id": "0197f4c2-8f25-73f2-8a88-1fdf3c11395d",
+      "source_type": "catechism",
+      "source_name": "Catechism of the Catholic Church",
+      "tradition": "catholic",
+      "reference": "CCC 457",
+      "title": "Why the Word became Flesh",
+      "content": "The Word became flesh for us in order to save us by reconciling us with God...",
+      "vector_score": 0.91,
+      "lexical_score": 1,
+      "combined_score": 0.937
+    }
+  ],
+  "meta": {
+    "top_k": 10,
+    "total": 1,
+    "minimum_score": 0.1,
+    "vector_weight": 0.7,
+    "lexical_weight": 0.3
+  }
 }
 ```
 
@@ -204,15 +254,21 @@ The seeder contains about 20 Catholic retrieval questions across Christology, Sa
 Run a baseline evaluation:
 
 ```bash
-php artisan evaluate --top-k=5 --minimum-score=0 --save
+php artisan evaluate:retrieval --top-k=5 --minimum-score=0 --strategy=vector --save
 ```
+
+The old `php artisan evaluate` command name is still available as an alias.
 
 Useful filters:
 
 ```bash
-php artisan evaluate --category=christology
-php artisan evaluate --question-id=UUID
-php artisan evaluate --limit=10
+php artisan evaluate:retrieval --category=christology
+php artisan evaluate:retrieval --question-id=UUID
+php artisan evaluate:retrieval --limit=10
+php artisan evaluate:retrieval --strategy=lexical
+php artisan evaluate:retrieval --strategy=hybrid
+php artisan evaluate:retrieval --compare
+php artisan evaluate:retrieval --weight-grid
 ```
 
 API evaluation endpoint:
@@ -225,6 +281,7 @@ POST /api/evaluations/retrieval
 {
   "top_k": 5,
   "minimum_score": 0.7,
+  "strategy": "hybrid",
   "save": true
 }
 ```
@@ -241,8 +298,10 @@ Example response:
     "mrr": 0.79,
     "average_latency_ms": 120,
     "configuration": {
-      "retrieval": "semantic_vector",
+      "retrieval": "hybrid",
       "embedding_model": "text-embedding-3-small",
+      "vector_weight": 0.7,
+      "lexical_weight": 0.3,
       "top_k": 5,
       "minimum_score": 0.7
     }
@@ -264,7 +323,9 @@ docker compose up -d
 docker compose exec app php artisan migrate --force
 docker compose exec app php artisan db:seed --class=EvaluationQuestionSeeder
 docker compose exec app php artisan embeddings --force --batch=100
-docker compose exec app php artisan evaluate --top-k=5 --minimum-score=0 --save
+docker compose exec app php artisan evaluate:retrieval --top-k=5 --minimum-score=0 --strategy=hybrid --save
+docker compose exec app php artisan evaluate:retrieval --top-k=5 --minimum-score=0 --compare
+docker compose exec app php artisan evaluate:retrieval --top-k=5 --minimum-score=0 --weight-grid
 docker compose exec app php artisan tinker --execute "dump(DB::table('retrieval_evaluation_summaries')->latest('created_at')->first());"
 ```
 

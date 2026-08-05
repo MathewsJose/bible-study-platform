@@ -19,6 +19,7 @@ final class RunRetrievalEvaluationRequest extends FormRequest
         return [
             'top_k' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'minimum_score' => ['sometimes', 'numeric', 'min:0', 'max:1'],
+            'strategy' => ['sometimes', 'string', 'in:vector,lexical,hybrid'],
             'question_id' => ['sometimes', 'uuid'],
             'category' => ['sometimes', 'string', 'max:80'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:100'],

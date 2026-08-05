@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Knowledge\Services;
 
 use App\Application\Knowledge\DTOs\EvaluationDatasetValidationResult;
+use App\Application\Knowledge\DTOs\HybridRankedKnowledgeDocumentData;
 use App\Application\Knowledge\DTOs\RankedKnowledgeDocumentData;
 use App\Application\Knowledge\DTOs\RetrievalEvaluationResult;
 use App\Application\Knowledge\DTOs\RetrievalEvaluationSummary;
@@ -19,7 +20,11 @@ use Illuminate\Support\Facades\Log;
 
 final readonly class RetrievalEvaluationService
 {
-    public function __construct(private SemanticSearchService $semanticSearch) {}
+    public function __construct(
+        private SemanticSearchService $semanticSearch,
+        private LexicalSearchService $lexicalSearch,
+        private HybridSearchService $hybridSearch,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $options
@@ -115,19 +120,20 @@ final readonly class RetrievalEvaluationService
     {
         $topK = max(1, (int) ($options['topK'] ?? 5));
         $minimumScore = isset($options['minimumScore']) ? (float) $options['minimumScore'] : null;
+        $strategy = (string) ($options['strategy'] ?? 'vector');
         $save = (bool) ($options['save'] ?? false);
         $threshold = $minimumScore ?? 0.0;
 
         $results = $this->questions($options)
             ->filter(fn (EvaluationQuestionRecord $question): bool => $this->uniqueStrings($question->expected_references ?? []) !== [])
-            ->map(fn (EvaluationQuestionRecord $question): RetrievalEvaluationResult => $this->evaluateQuestion($question, $topK, $threshold))
+            ->map(fn (EvaluationQuestionRecord $question): RetrievalEvaluationResult => $this->evaluateQuestion($question, $topK, $threshold, $strategy))
             ->values()
             ->all();
 
         $summary = $this->summarize($results, $this->configuration($topK, $minimumScore, $options));
 
         if ($save) {
-            $summary = $this->storeSummary($summary, $results, $topK, $minimumScore);
+            $summary = $this->storeSummary($summary, $results, $topK, $minimumScore, $strategy);
         }
 
         Log::info('Retrieval evaluation completed.', [
@@ -143,15 +149,60 @@ final readonly class RetrievalEvaluationService
         return $summary;
     }
 
-    public function evaluateQuestion(EvaluationQuestionRecord $question, int $topK, float $minimumScore): RetrievalEvaluationResult
+    /**
+     * @return array<string, RetrievalEvaluationSummary>
+     */
+    public function compare(array $options = []): array
+    {
+        $summaries = [];
+
+        foreach (['vector', 'lexical', 'hybrid'] as $strategy) {
+            $summaries[$strategy] = $this->evaluate(array_merge($options, [
+                'strategy' => $strategy,
+                'save' => false,
+            ]));
+        }
+
+        return $summaries;
+    }
+
+    /**
+     * @return array<string, RetrievalEvaluationSummary>
+     */
+    public function weightGrid(array $options = []): array
+    {
+        $summaries = [];
+        $originalVectorWeight = config('retrieval.hybrid.vector_weight');
+        $originalLexicalWeight = config('retrieval.hybrid.lexical_weight');
+
+        try {
+            foreach ([[0.8, 0.2], [0.7, 0.3], [0.6, 0.4]] as [$vectorWeight, $lexicalWeight]) {
+                config()->set('retrieval.hybrid.vector_weight', $vectorWeight);
+                config()->set('retrieval.hybrid.lexical_weight', $lexicalWeight);
+
+                $key = "vector {$vectorWeight} / lexical {$lexicalWeight}";
+                $summaries[$key] = $this->evaluate(array_merge($options, [
+                    'strategy' => 'hybrid',
+                    'save' => false,
+                ]));
+            }
+        } finally {
+            config()->set('retrieval.hybrid.vector_weight', $originalVectorWeight);
+            config()->set('retrieval.hybrid.lexical_weight', $originalLexicalWeight);
+        }
+
+        return $summaries;
+    }
+
+    public function evaluateQuestion(EvaluationQuestionRecord $question, int $topK, float $minimumScore, string $strategy = 'vector'): RetrievalEvaluationResult
     {
         $startedAt = microtime(true);
-        $rankedDocuments = $this->semanticSearch->search($question->question, $topK, $minimumScore);
+        $rankedDocuments = $this->retrieve($question->question, $topK, $minimumScore, $strategy);
         $executionTimeMs = (int) round((microtime(true) - $startedAt) * 1000);
 
         $expectedReferences = $this->uniqueStrings($question->expected_references ?? []);
         $retrievedResults = array_map(
-            static fn (RankedKnowledgeDocumentData $result): array => [
+            static fn (RankedKnowledgeDocumentData|HybridRankedKnowledgeDocumentData $result): array => [
                 'id' => $result->document->id,
                 'source_type' => $result->document->sourceType,
                 'source_name' => $result->document->sourceName,
@@ -159,6 +210,8 @@ final readonly class RetrievalEvaluationService
                 'reference' => $result->document->reference,
                 'title' => $result->document->title,
                 'score' => $result->score,
+                'vector_score' => $result instanceof HybridRankedKnowledgeDocumentData ? ($result->scoreBreakdown['vector'] ?? 0.0) : null,
+                'lexical_score' => $result instanceof HybridRankedKnowledgeDocumentData ? ($result->scoreBreakdown['lexical'] ?? 0.0) : null,
             ],
             $rankedDocuments,
         );
@@ -210,7 +263,7 @@ final readonly class RetrievalEvaluationService
     /**
      * @param  list<RetrievalEvaluationResult>  $results
      */
-    private function storeSummary(RetrievalEvaluationSummary $summary, array $results, int $topK, ?float $minimumScore): RetrievalEvaluationSummary
+    private function storeSummary(RetrievalEvaluationSummary $summary, array $results, int $topK, ?float $minimumScore, string $strategy): RetrievalEvaluationSummary
     {
         foreach ($results as $result) {
             RetrievalEvaluationRunRecord::query()->create([
@@ -218,6 +271,7 @@ final readonly class RetrievalEvaluationService
                 'query' => $result->question->question,
                 'top_k' => $topK,
                 'minimum_score' => $minimumScore,
+                'retrieval_strategy' => $strategy,
                 'retrieved_results' => $result->retrievedResults,
                 'expected_references' => $result->expectedReferences,
                 'hit' => $result->hit,
@@ -275,6 +329,18 @@ final readonly class RetrievalEvaluationService
     }
 
     /**
+     * @return list<RankedKnowledgeDocumentData|HybridRankedKnowledgeDocumentData>
+     */
+    private function retrieve(string $query, int $topK, float $minimumScore, string $strategy): array
+    {
+        return match ($strategy) {
+            'lexical' => $this->lexicalSearch->search($query, $topK),
+            'hybrid' => $this->hybridSearch->search($query, $topK, $minimumScore),
+            default => $this->semanticSearch->search($query, $topK, $minimumScore),
+        };
+    }
+
+    /**
      * @param  array<int, mixed>  $values
      * @return list<string>
      */
@@ -302,10 +368,12 @@ final readonly class RetrievalEvaluationService
     private function configuration(int $topK, ?float $minimumScore, array $options): array
     {
         return [
-            'retrieval' => 'semantic_vector',
+            'retrieval' => $options['strategy'] ?? 'vector',
             'embedding_provider' => config('embeddings.provider'),
             'embedding_model' => config('embeddings.model'),
             'embedding_dimensions' => config('embeddings.dimensions'),
+            'vector_weight' => config('retrieval.hybrid.vector_weight'),
+            'lexical_weight' => config('retrieval.hybrid.lexical_weight'),
             'top_k' => $topK,
             'minimum_score' => $minimumScore,
             'source_filters' => [],

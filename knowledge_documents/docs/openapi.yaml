@@ -71,6 +71,17 @@ paths:
               $ref: "#/components/schemas/SearchRequest"
       responses:
         "200": { description: Ranked vector results }
+  /documents/hybrid-search:
+    post:
+      summary: Hybrid vector and lexical search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HybridSearchRequest"
+      responses:
+        "200": { description: Ranked hybrid results with vector, lexical, and combined scores }
 components:
   parameters:
     DocumentId:
@@ -122,3 +133,37 @@ components:
           type: integer
           minimum: 1
           maximum: 50
+    HybridSearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 2
+          maxLength: 500
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 50
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+        minimum_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        source_type:
+          type: string
+        source_types:
+          type: array
+          items:
+            type: string
+        source_name:
+          type: string
+        tradition:
+          type: string
+        book:
+          type: string
+        chapter:
+          type: integer
