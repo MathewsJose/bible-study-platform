@@ -134,10 +134,10 @@ it('performs semantic search with a database compatible fallback', function (): 
 
     postJson('/api/documents/semantic-search', [
         'query' => 'grace and salvation',
-        'score_threshold' => 0.1,
+        'minimum_score' => 0.1,
     ])
         ->assertOk()
-        ->assertJsonPath('results.0.reference', 'John 3:16')
-        ->assertJsonPath('results.0.score', 1)
+        ->assertJsonPath('data.0.reference', 'John 3:16')
+        ->assertJsonPath('data.0.score', 1)
         ->assertJsonPath('meta.total', 1);
 });

@@ -159,15 +159,18 @@ it('performs semantic search through the API with threshold and top k', function
     postJson('/api/documents/semantic-search', [
         'query' => 'Why did Jesus become man?',
         'top_k' => 1,
-        'score_threshold' => 0.8,
+        'minimum_score' => 0.8,
     ])
         ->assertOk()
-        ->assertJsonPath('results.0.reference', 'CCC 457')
-        ->assertJsonPath('results.0.score', 0.95)
-        ->assertJsonPath('results.0.title', $repository->rankedResults[0]['record']->title)
+        ->assertJsonPath('data.0.id', $repository->rankedResults[0]['record']->id)
+        ->assertJsonPath('data.0.source_type', $repository->rankedResults[0]['record']->source_type)
+        ->assertJsonPath('data.0.reference', 'CCC 457')
+        ->assertJsonPath('data.0.score', 0.95)
+        ->assertJsonPath('data.0.title', $repository->rankedResults[0]['record']->title)
+        ->assertJsonPath('data.0.content', $repository->rankedResults[0]['record']->content)
         ->assertJsonPath('meta.top_k', 1)
         ->assertJsonPath('meta.total', 1)
-        ->assertJsonPath('meta.score_threshold', 0.8);
+        ->assertJsonPath('meta.minimum_score', 0.8);
 
     expect($embeddingProvider->embeddedText)->toBe('Why did Jesus become man?')
         ->and($repository->embedding)->toBe([0.11, 0.22, 0.33])
@@ -180,10 +183,12 @@ it('validates semantic search options', function (): void {
         'query' => 'x',
         'top_k' => 500,
         'score_threshold' => 1.5,
+        'minimum_score' => -0.1,
+        'tradition' => 'unsupported',
         'page' => 0,
     ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['query', 'top_k', 'score_threshold', 'page']);
+        ->assertJsonValidationErrors(['query', 'top_k', 'score_threshold', 'minimum_score', 'tradition', 'page']);
 });
 
 it('returns a clear unavailable response when embeddings are not configured', function (): void {

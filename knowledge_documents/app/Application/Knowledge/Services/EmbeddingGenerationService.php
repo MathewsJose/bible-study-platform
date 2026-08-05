@@ -8,6 +8,7 @@ use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
 use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
 use App\Application\Knowledge\DTOs\EmbeddingDispatchResult;
 use App\Application\Knowledge\DTOs\EmbeddingGenerationResult;
+use App\Application\Knowledge\Exceptions\InvalidEmbeddingVectorException;
 use App\Jobs\EmbeddingJob;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 use Illuminate\Bus\Batch;

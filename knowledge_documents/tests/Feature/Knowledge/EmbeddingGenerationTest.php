@@ -59,11 +59,17 @@ it('generates embeddings for pending knowledge documents in batches of 100', fun
         'embedding_status' => EmbeddingStatus::Ready,
     ]);
 
-    $status = Artisan::call('embeddings:generate');
+    $status = Artisan::call('embeddings');
     $output = Artisan::output();
 
     expect($status)->toBe(Command::SUCCESS)
         ->and($provider->batchSizes)->toBe([100, 1])
+        ->and($output)->toContain('total candidates: 101')
+        ->and($output)->toContain('processed: 101')
+        ->and($output)->toContain('succeeded: 101')
+        ->and($output)->toContain('skipped: 0')
+        ->and($output)->toContain('failed: 0')
+        ->and($output)->toContain('duration:')
         ->and($output)->toContain('documents queued: 101')
         ->and($output)->toContain('jobs queued: 2')
         ->and($output)->toContain('embeddings generated: 101')
@@ -79,6 +85,13 @@ it('generates embeddings for pending knowledge documents in batches of 100', fun
 });
 
 it('reports when there are no pending embeddings', function (): void {
+    $status = Artisan::call('embeddings');
+
+    expect($status)->toBe(Command::SUCCESS)
+        ->and(Artisan::output())->toContain('No knowledge documents need embeddings.');
+});
+
+it('keeps embeddings generate as a backwards-compatible command alias', function (): void {
     $status = Artisan::call('embeddings:generate');
 
     expect($status)->toBe(Command::SUCCESS)

@@ -79,7 +79,7 @@ Example semantic search request:
   "query": "Why did Jesus become man?",
   "top_k": 10,
   "source_types": ["catechism", "bible_verse"],
-  "score_threshold": 0.4
+  "minimum_score": 0.4
 }
 ```
 
@@ -87,17 +87,22 @@ Example response:
 
 ```json
 {
-  "results": [
+  "data": [
     {
+      "id": "0197f4c2-8f25-73f2-8a88-1fdf3c11395d",
+      "source_type": "catechism",
+      "source_name": "Catechism of the Catholic Church",
+      "tradition": "catholic",
       "reference": "CCC 457",
-      "score": 0.95,
-      "title": "Why the Word became Flesh"
+      "title": "Why the Word became Flesh",
+      "content": "The Word became flesh for us in order to save us by reconciling us with God...",
+      "score": 0.95
     }
   ],
   "meta": {
     "top_k": 10,
     "total": 1,
-    "score_threshold": 0.4
+    "minimum_score": 0.4
   }
 }
 ```
@@ -149,19 +154,19 @@ For local tests or deterministic development runs, bind a fake provider in tests
 Generate embeddings:
 
 ```bash
-php artisan embeddings:generate --batch=100
+php artisan embeddings --batch=100
 ```
 
 Useful options:
 
 ```bash
-php artisan embeddings:generate --document-id=UUID
-php artisan embeddings:generate --force
-php artisan embeddings:generate --retry-failed
-php artisan embeddings:generate --dry-run
+php artisan embeddings --document-id=UUID
+php artisan embeddings --force
+php artisan embeddings --retry-failed
+php artisan embeddings --dry-run
 ```
 
-The command finds documents that need embeddings, chunks IDs into queue jobs, dispatches them as a Laravel batch, displays a progress bar while dispatching, and prints a summary. With `EMBEDDINGS_QUEUE_CONNECTION=sync`, jobs run immediately. With `database`, `redis`, or another async connection, start a worker:
+The old `php artisan embeddings:generate` name is still available as an alias. The command finds documents that need embeddings, chunks IDs into queue jobs, dispatches them as a Laravel batch, displays a progress bar while dispatching, and prints a summary containing total candidates, processed, succeeded, skipped, failed, and duration. With `EMBEDDINGS_QUEUE_CONNECTION=sync`, jobs run immediately. With `database`, `redis`, or another async connection, start a worker:
 
 ```bash
 php artisan queue:work database --tries=3

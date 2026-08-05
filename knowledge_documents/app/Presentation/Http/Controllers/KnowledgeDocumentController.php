@@ -94,7 +94,7 @@ final class KnowledgeDocumentController extends Controller
     public function semanticSearch(SearchKnowledgeDocumentsRequest $request): JsonResponse
     {
         $topK = (int) ($request->validated('top_k') ?? $request->integer('limit', (int) config('knowledge.semantic_search.limit', 10)));
-        $threshold = (float) ($request->validated('score_threshold') ?? config('knowledge.semantic_search.score_threshold', 0.0));
+        $threshold = (float) ($request->validated('minimum_score') ?? $request->validated('score_threshold') ?? config('knowledge.semantic_search.score_threshold', 0.0));
         $filters = $request->safe()->only(['source_type', 'source_types', 'source_name', 'tradition']);
 
         try {
@@ -115,18 +115,23 @@ final class KnowledgeDocumentController extends Controller
         }
 
         return response()->json([
-            'results' => array_values(array_map(
+            'data' => array_values(array_map(
                 static fn (RankedKnowledgeDocumentData $result): array => [
+                    'id' => $result->document->id,
+                    'source_type' => $result->document->sourceType,
+                    'source_name' => $result->document->sourceName,
+                    'tradition' => $result->document->tradition,
                     'reference' => $result->document->reference,
-                    'score' => $result->score,
                     'title' => $result->document->title,
+                    'content' => $result->document->content,
+                    'score' => $result->score,
                 ],
                 $results,
             )),
             'meta' => [
                 'top_k' => $topK,
                 'total' => count($results),
-                'score_threshold' => $threshold,
+                'minimum_score' => $threshold,
             ],
         ]);
     }
