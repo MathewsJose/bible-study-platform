@@ -187,6 +187,106 @@ Troubleshooting:
 - PostgreSQL production search requires pgvector and stored vectors in the existing `embedding` column.
 - If jobs remain queued, run `php artisan queue:work` with the same connection configured by `EMBEDDINGS_QUEUE_CONNECTION`.
 
+## Retrieval Evaluation
+
+Retrieval evaluation measures whether semantic search returns the Catholic sources we expected before any future LLM answer generation is added. This matters because RAG quality depends first on retrieval quality: if the system fails to retrieve `CCC 457` or `John 1:14` for "Why did Jesus become man?", a later answer generator will be grounded in the wrong material.
+
+Evaluation data is stored in `evaluation_questions`, not hardcoded in services. Each question stores expected references and expected source types. Detailed runs are stored in `retrieval_evaluation_runs`, and aggregate summaries are stored in `retrieval_evaluation_summaries` with the embedding model, provider, dimensions, top K, minimum score, and filters used for reproducibility.
+
+Seed development evaluation questions:
+
+```bash
+php artisan db:seed --class=EvaluationQuestionSeeder
+```
+
+The seeder contains about 20 Catholic retrieval questions across Christology, Sacraments, Grace, Trinity, Mary, Salvation, and Scripture. It only stores expected references that currently exist in `knowledge_documents`; missing references are printed as warnings instead of invented.
+
+Run a baseline evaluation:
+
+```bash
+php artisan evaluate --top-k=5 --minimum-score=0 --save
+```
+
+Useful filters:
+
+```bash
+php artisan evaluate --category=christology
+php artisan evaluate --question-id=UUID
+php artisan evaluate --limit=10
+```
+
+API evaluation endpoint:
+
+```http
+POST /api/evaluations/retrieval
+```
+
+```json
+{
+  "top_k": 5,
+  "minimum_score": 0.7,
+  "save": true
+}
+```
+
+Example response:
+
+```json
+{
+  "data": {
+    "total_questions": 20,
+    "hit_rate": 0.85,
+    "precision": 0.61,
+    "recall": 0.72,
+    "mrr": 0.79,
+    "average_latency_ms": 120,
+    "configuration": {
+      "retrieval": "semantic_vector",
+      "embedding_model": "text-embedding-3-small",
+      "top_k": 5,
+      "minimum_score": 0.7
+    }
+  }
+}
+```
+
+Metrics in this project:
+
+- Hit@K: whether at least one expected Catholic source appears in the top K. If `CCC 457` appears anywhere in top 5 for "Why did Jesus become man?", Hit@5 is true.
+- Precision@K: how many retrieved results were expected references. If top 5 contains `CCC 457` and `John 1:14`, and only those two were expected, precision is `2 / 5`.
+- Recall@K: how many expected references were retrieved. If expected references are `CCC 456`, `CCC 457`, `CCC 458` and top 5 contains two of them, recall is `2 / 3`.
+- MRR: reciprocal rank of the first expected reference. If the first expected result is ranked second, reciprocal rank is `0.5`.
+
+Manual Docker verification:
+
+```bash
+docker compose up -d
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan db:seed --class=EvaluationQuestionSeeder
+docker compose exec app php artisan embeddings --force --batch=100
+docker compose exec app php artisan evaluate --top-k=5 --minimum-score=0 --save
+docker compose exec app php artisan tinker --execute "dump(DB::table('retrieval_evaluation_summaries')->latest('created_at')->first());"
+```
+
+Expected console shape:
+
+```text
+Evaluation Dataset Validation
+Questions: 20
+Valid: 18
+Invalid: 2
+
+Retrieval Evaluation
+Questions: 18
+Top K: 5
+
+Hit@5: 85.0%
+Precision@5: 0.610
+Recall@5: 0.720
+MRR: 0.790
+Average latency: 120 ms
+```
+
 ## Import Pipeline
 
 The import boundary starts with `DocumentImporterInterface` and concrete importers:

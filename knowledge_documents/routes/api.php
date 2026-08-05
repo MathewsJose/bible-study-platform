@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Presentation\Http\Controllers\KnowledgeDocumentController;
+use App\Presentation\Http\Controllers\RetrievalEvaluationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('documents')->group(function (): void {
@@ -15,3 +16,5 @@ Route::prefix('documents')->group(function (): void {
     Route::put('/{id}', [KnowledgeDocumentController::class, 'update']);
     Route::delete('/{id}', [KnowledgeDocumentController::class, 'destroy']);
 });
+
+Route::post('/evaluations/retrieval', [RetrievalEvaluationController::class, 'store']);
