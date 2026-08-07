@@ -33,6 +33,11 @@ final readonly class KnowledgeDocumentData
 
     public static function fromRecord(KnowledgeDocumentRecord $record): self
     {
+        $recordEmbeddingStatus = $record->getAttribute('embedding_status');
+        $embeddingStatus = $recordEmbeddingStatus instanceof EmbeddingStatus
+            ? $recordEmbeddingStatus->value
+            : (string) ($recordEmbeddingStatus ?? EmbeddingStatus::Pending->value);
+
         return new self(
             id: $record->id,
             sourceType: $record->source_type,
@@ -42,13 +47,13 @@ final readonly class KnowledgeDocumentData
             title: $record->title,
             content: $record->content,
             metadata: $record->metadata,
-            createdAt: (string) $record->created_at?->toJSON(),
-            updatedAt: (string) $record->updated_at?->toJSON(),
-            embeddingStatus: ($record->embedding_status ?? EmbeddingStatus::Pending)->value,
+            createdAt: (string) $record->created_at?->format(DATE_ATOM),
+            updatedAt: (string) $record->updated_at?->format(DATE_ATOM),
+            embeddingStatus: $embeddingStatus,
             embeddingModel: $record->embedding_model,
             embeddingProvider: $record->embedding_provider,
             embeddingDimensions: $record->embedding_dimensions,
-            embeddedAt: $record->embedded_at?->toJSON(),
+            embeddedAt: $record->embedded_at?->format(DATE_ATOM),
             embeddingError: $record->embedding_error,
         );
     }

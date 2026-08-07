@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Application\Knowledge\Importing\Services\KnowledgeSourceRegistry;
+use App\Application\Knowledge\Graph\Services\KnowledgeGraphDiagnosticsService;
 use App\Domain\Knowledge\Enums\EmbeddingStatus;
 use App\Domain\Knowledge\Enums\SourceType;
 use App\Infrastructure\Knowledge\Importers\ImportManifest;
@@ -18,13 +19,14 @@ final class KnowledgeStatusCommand extends Command
 
     protected $description = 'Report knowledge source import status and embedding coverage.';
 
-    public function handle(KnowledgeSourceRegistry $sources): int
+    public function handle(KnowledgeSourceRegistry $sources, KnowledgeGraphDiagnosticsService $graphDiagnostics): int
     {
         $rows = [];
         $this->line('Registered sources: '.count($sources->all()));
         $this->displayBibleStatus();
         $this->displayCatechismStatus();
         $this->displayChurchFathersStatus();
+        $this->displayGraphStatus($graphDiagnostics);
 
         foreach ($sources->all() as $importer) {
             $sourceTypes = $this->documentSourceTypes($importer->identifier());
@@ -238,5 +240,28 @@ final class KnowledgeStatusCommand extends Command
         $this->line('Embedding coverage: '.($documentCount === 0 ? '0.00%' : number_format(($embeddedCount / $documentCount) * 100, 2).'%'));
         $this->line('Last import: '.($lastImport?->finished_at?->toDateTimeString() ?? 'never'));
         $this->line("Validation failures: {$validationFailures}");
+    }
+
+    private function displayGraphStatus(KnowledgeGraphDiagnosticsService $graphDiagnostics): void
+    {
+        $report = $graphDiagnostics->diagnostics();
+
+        $this->line('');
+        $this->line('Knowledge Graph Status');
+        $this->line("Total graph nodes: {$report->totalNodes}");
+        $this->line("Total graph edges: {$report->totalEdges}");
+        $this->line("Disconnected nodes: {$report->disconnectedNodes}");
+        $this->line("Duplicate relationships: {$report->duplicateRelationships}");
+        $this->line("Broken references: {$report->brokenRelationships}");
+        $this->line("Average degree: {$report->averageDegree}");
+
+        $rows = [];
+        foreach ($report->relationshipCounts as $type => $count) {
+            $rows[] = [$type, $count];
+        }
+
+        if ($rows !== []) {
+            $this->table(['Relationship Type', 'Count'], $rows);
+        }
     }
 }

@@ -8,6 +8,7 @@ use App\Application\Knowledge\DTOs\ImportResult;
 use App\Application\Knowledge\Importing\DTOs\NormalizedKnowledgeDocument;
 use App\Application\Knowledge\Services\KnowledgeDocumentService;
 use App\Domain\Knowledge\Enums\ImportStatus;
+use App\Events\Knowledge\DocumentImported;
 use App\Infrastructure\Knowledge\Persistence\KnowledgeDocumentRecord;
 
 final readonly class KnowledgeDocumentPersistenceService
@@ -45,6 +46,7 @@ final readonly class KnowledgeDocumentPersistenceService
 
                     if ($record instanceof KnowledgeDocumentRecord) {
                         $changedDocumentIds[] = $record->id;
+                        DocumentImported::dispatch($record->id);
                     }
                 }
             } catch (\Throwable) {

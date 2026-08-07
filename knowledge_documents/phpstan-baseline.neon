@@ -1,0 +1,559 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Parameter \#1 \$array \(list\<float\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Application/Knowledge/Services/EmbeddingGenerationService.php
+
+		-
+			message: '#^Parameter \#1 \$array \(non\-empty\-list\<string\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Application/Knowledge/Services/EmbeddingGenerationService.php
+
+		-
+			message: '#^Parameter \#2 \$length of function array_chunk expects int\<1, max\>, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Application/Knowledge/Services/EmbeddingGenerationService.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<float\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Application/Knowledge/Services/EmbeddingProviderHealthService.php
+
+		-
+			message: '#^Call to function is_numeric\(\) with float will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Application/Knowledge/Services/EmbeddingVectorValidator.php
+
+		-
+			message: '#^Method App\\Application\\Knowledge\\Services\\KnowledgeDocumentService\:\:isDifferent\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Application/Knowledge/Services/KnowledgeDocumentService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$dimensions\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalDiagnosticsService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$indexdef\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalDiagnosticsService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$indexname\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalDiagnosticsService.php
+
+		-
+			message: '#^Method App\\Application\\Knowledge\\Services\\RetrievalDiagnosticsService\:\:actualEmbeddingDimensions\(\) should return list\<int\> but returns array\<int, int\<0, max\>\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalDiagnosticsService.php
+
+		-
+			message: '#^Method App\\Application\\Knowledge\\Services\\RetrievalDiagnosticsService\:\:actualEmbeddingDimensions\(\) should return list\<int\> but returns array\<int\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalDiagnosticsService.php
+
+		-
+			message: '#^Method App\\Application\\Knowledge\\Services\\RetrievalDiagnosticsService\:\:evaluationDataset\(\) should return list\<array\<string, mixed\>\> but returns array\<int, array\{question_id\: string, question\: string, category\: string\|null, coverage_status\: string, intended_references\: list\<string\>, expected_references\: list\<string\>, missing_references\: list\<string\>, expected_source_types\: list\<string\>, \.\.\.\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalDiagnosticsService.php
+
+		-
+			message: '#^Method App\\Application\\Knowledge\\Services\\RetrievalEvaluationService\:\:compare\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalEvaluationService.php
+
+		-
+			message: '#^Method App\\Application\\Knowledge\\Services\\RetrievalEvaluationService\:\:weightGrid\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalEvaluationService.php
+
+		-
+			message: '#^Parameter \#1 \$results of method App\\Application\\Knowledge\\Services\\RetrievalEvaluationService\:\:summarize\(\) expects list\<App\\Application\\Knowledge\\DTOs\\RetrievalEvaluationResult\>, array\<int, App\\Application\\Knowledge\\DTOs\\RetrievalEvaluationResult\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalEvaluationService.php
+
+		-
+			message: '#^Parameter \#2 \$results of method App\\Application\\Knowledge\\Services\\RetrievalEvaluationService\:\:storeSummary\(\) expects list\<App\\Application\\Knowledge\\DTOs\\RetrievalEvaluationResult\>, array\<int, App\\Application\\Knowledge\\DTOs\\RetrievalEvaluationResult\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Application/Knowledge/Services/RetrievalEvaluationService.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<float\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Application/Knowledge/Services/SemanticSearchService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of function array_map expects \(callable\(int\|string, mixed\)\: mixed\)\|null, Closure\(string, int\)\: array\{string, int\} given\.$#'
+			identifier: argument.type
+			count: 3
+			path: app/Console/Commands/EmbeddingsHealthCommand.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$aggregate\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Console/Commands/KnowledgeAuditCommand.php
+
+		-
+			message: '#^Method App\\Console\\Commands\\KnowledgeAuditCommand\:\:displayCounts\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Console/Commands/KnowledgeAuditCommand.php
+
+		-
+			message: '#^Method App\\Console\\Commands\\KnowledgeImportCommand\:\:collectFiles\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Console/Commands/KnowledgeImportCommand.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Console/Commands/KnowledgeStatusCommand.php
+
+		-
+			message: '#^Method App\\Console\\Commands\\KnowledgeStatusCommand\:\:translationCoverageRows\(\) should return list\<array\{string, int, int\}\> but returns array\<int, array\{string, int, int\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Console/Commands/KnowledgeStatusCommand.php
+
+		-
+			message: '#^Parameter \#1 \$expression of method Illuminate\\Database\\Eloquent\\Builder\<App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\>\:\:selectRaw\(\) expects literal\-string, non\-falsy\-string given\.$#'
+			identifier: argument.type
+			count: 3
+			path: app/Console/Commands/KnowledgeStatusCommand.php
+
+		-
+			message: '#^Parameter \#1 \$sql of method Illuminate\\Database\\Eloquent\\Builder\<App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\>\:\:whereRaw\(\) expects Illuminate\\Contracts\\Database\\Query\\Expression\|literal\-string, non\-falsy\-string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Console/Commands/KnowledgeStatusCommand.php
+
+		-
+			message: '#^Parameter \#1 \$directories of method App\\Console\\Commands\\KnowledgeVerifyCommand\:\:collectFiles\(\) expects list\<string\>, array\<mixed, mixed\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Console/Commands/KnowledgeVerifyCommand.php
+
+		-
+			message: '#^Parameter \#1 \$callback of function array_map expects \(callable\(int\|string, mixed\)\: mixed\)\|null, Closure\(string, array\)\: array\{string, mixed, mixed, mixed, mixed, mixed, mixed\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Console/Commands/RetrievalHealthCommand.php
+
+		-
+			message: '#^Class App\\Domain\\Knowledge\\ValueObjects\\SourceMetadata implements generic interface Illuminate\\Contracts\\Support\\Arrayable but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Domain/Knowledge/ValueObjects/SourceMetadata.php
+
+		-
+			message: '#^Parameter \#3 \$when of method Illuminate\\Http\\Client\\PendingRequest\<false\>\:\:retry\(\) expects \(callable\(Throwable, Illuminate\\Http\\Client\\PendingRequest, string\|null\)\: bool\)\|null, Closure\(Exception, Illuminate\\Http\\Client\\PendingRequest\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Infrastructure/Knowledge/Embedding/OpenAIEmbeddingProvider.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Graph\\EloquentKnowledgeGraphRepository\:\:relationshipsForDocument\(\) should return list\<App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRelationshipRecord\> but returns array\<int, App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRelationshipRecord\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Infrastructure/Knowledge/Graph/EloquentKnowledgeGraphRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\AbstractBibleImporter\:\:importFile\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/AbstractBibleImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\AbstractBibleImporter\:\:startManifest\(\) has parameter \$extraAttributes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/AbstractBibleImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\AbstractDocumentImporter\:\:importFile\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/AbstractDocumentImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\AbstractDocumentImporter\:\:startManifest\(\) has parameter \$extraAttributes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/AbstractDocumentImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\CatechismImporter\:\:importCatechism\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/CatechismImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\CatechismImporter\:\:importFile\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/CatechismImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\ChurchFatherImporter\:\:importFile\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/ChurchFatherImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\ChurchFatherImporter\:\:importSections\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/ChurchFatherImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\ModernCatechismImporter\:\:importCatechism\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/ModernCatechismImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importers\\ModernCatechismImporter\:\:importFile\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importers/ModernCatechismImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\BibleKnowledgeImporter\:\:chapterCrossReferences\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/BibleKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\CatechismKnowledgeImporter\:\:cccReferences\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/CatechismKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\CatechismKnowledgeImporter\:\:churchFatherReferences\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/CatechismKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\CatechismKnowledgeImporter\:\:scriptureReferences\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/CatechismKnowledgeImporter.php
+
+		-
+			message: '#^Offset 0 on array\{list\<string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/CatechismKnowledgeImporter.php
+
+		-
+			message: '#^Offset 1 on array\{list\<string\>, list\<numeric\-string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/CatechismKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\ChurchFathersKnowledgeImporter\:\:catechismReferences\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/ChurchFathersKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\ChurchFathersKnowledgeImporter\:\:churchFatherReferences\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/ChurchFathersKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\ChurchFathersKnowledgeImporter\:\:crossReferences\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/ChurchFathersKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\ChurchFathersKnowledgeImporter\:\:filteredSections\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/ChurchFathersKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Importing\\ChurchFathersKnowledgeImporter\:\:scriptureReferences\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/ChurchFathersKnowledgeImporter.php
+
+		-
+			message: '#^Offset 0 on array\{list\<string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/ChurchFathersKnowledgeImporter.php
+
+		-
+			message: '#^Offset 1 on array\{list\<string\>, list\<numeric\-string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Infrastructure/Knowledge/Importing/ChurchFathersKnowledgeImporter.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\EloquentEmbeddingRepository\:\:applySemanticFilters\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentEmbeddingRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\EloquentEmbeddingRepository\:\:applySemanticFilters\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentEmbeddingRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\EloquentEmbeddingRepository\:\:idsNeedingEmbeddings\(\) should return list\<string\> but returns array\<string\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentEmbeddingRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\EloquentEmbeddingRepository\:\:semanticSearch\(\) should return list\<array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\}\> but returns array\<int, array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentEmbeddingRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\EloquentEmbeddingRepository\:\:semanticSearchFallback\(\) should return list\<array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\}\> but returns array\<int, array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentEmbeddingRepository.php
+
+		-
+			message: '#^Offset int\<0, max\> might not exist on list\<mixed\>\|null\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentEmbeddingRepository.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\}, Closure\(App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\)\: array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\} given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Infrastructure/Knowledge/Persistence/EloquentEmbeddingRepository.php
+
+		-
+			message: '#^Parameter \#1 \$value of function count expects array\|Countable, list\<mixed\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentEmbeddingRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\EloquentKnowledgeDocumentRepository\:\:applySearchFilters\(\) has parameter \$filters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentKnowledgeDocumentRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\EloquentKnowledgeDocumentRepository\:\:applySearchFilters\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentKnowledgeDocumentRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\EloquentKnowledgeDocumentRepository\:\:applySearchFilters\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentKnowledgeDocumentRepository.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: 1\.0\}, Closure\(App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\)\: array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: 1\.0\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentKnowledgeDocumentRepository.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\}, Closure\(App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\)\: array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/EloquentKnowledgeDocumentRepository.php
+
+		-
+			message: '#^Method App\\Infrastructure\\Knowledge\\Persistence\\RetrievalEvaluationRunRecord\:\:question\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Infrastructure/Knowledge/Persistence/RetrievalEvaluationRunRecord.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<array\<string, mixed\>\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Presentation/Http/Controllers/KnowledgeDocumentController.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<array\{id\: string, source_type\: string, source_name\: string, tradition\: string, reference\: string, title\: string, content\: string, score\: float\}\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Presentation/Http/Controllers/KnowledgeDocumentController.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 8
+			path: tests/Feature/EmbeddingProductionCommandTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/EvaluationQuestionSeederTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:seed\(\)\.$#'
+			identifier: method.notFound
+			count: 6
+			path: tests/Feature/EvaluationQuestionSeederTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/HybridRetrievalServiceTest.php
+
+		-
+			message: '#^Cannot access property \$content on App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: tests/Feature/Knowledge/DouayRheimsImportTest.php
+
+		-
+			message: '#^Cannot access property \$embedded_at on App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\|null\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: tests/Feature/Knowledge/EmbeddingStatusTest.php
+
+		-
+			message: '#^Cannot access property \$embedding on App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: tests/Feature/Knowledge/EmbeddingStatusTest.php
+
+		-
+			message: '#^Cannot access property \$embedding_status on App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\|null\.$#'
+			identifier: property.nonObject
+			count: 3
+			path: tests/Feature/Knowledge/EmbeddingStatusTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/Knowledge/HybridSearchTest.php
+
+		-
+			message: '#^Cannot access property \$metadata on App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: tests/Feature/Knowledge/IdempotentImportTest.php
+
+		-
+			message: '#^Method Tests\\Feature\\Knowledge\\IdempotentImportTest\:\:validPayload\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Feature/Knowledge/IdempotentImportTest.php
+
+		-
+			message: '#^Cannot access property \$embedding_error on App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: tests/Feature/Knowledge/ImprovedEmbeddingGenerationTest.php
+
+		-
+			message: '#^Cannot access property \$embedding_status on App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: tests/Feature/Knowledge/ImprovedEmbeddingGenerationTest.php
+
+		-
+			message: '#^Method Tests\\Feature\\Knowledge\\ImprovedEmbeddingGenerationTest\:\:getFakeProvider\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: tests/Feature/Knowledge/ImprovedEmbeddingGenerationTest.php
+
+		-
+			message: '#^Property App\\Application\\Knowledge\\Contracts\\EmbeddingProviderInterface@anonymous/tests/Feature/Knowledge/ImprovedEmbeddingGenerationTest\.php\:22\:\:\$processed type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Feature/Knowledge/ImprovedEmbeddingGenerationTest.php
+
+		-
+			message: '#^Cannot access property \$error_message on App\\Infrastructure\\Knowledge\\Importers\\ImportManifest\|null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: tests/Feature/Knowledge/KnowledgeImportCommandTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:once\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/Knowledge/SearchFilterTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/RetrievalDiagnosticsCommandTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/RetrievalEvaluationFeatureTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:fail\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Unit/Knowledge/OpenAIEmbeddingProviderTest.php
+
+		-
+			message: '#^Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\:\:byDefault\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Unit/RetrievalEvaluationServiceTest.php
+
+		-
+			message: '#^Function evaluationServiceWithResults\(\) has parameter \$results with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: tests/Unit/RetrievalEvaluationServiceTest.php
+
+		-
+			message: '#^Parameter \#1 \$documents of class App\\Application\\Knowledge\\Services\\LexicalSearchService constructor expects App\\Application\\Knowledge\\Contracts\\KnowledgeDocumentRepositoryInterface, Mockery\\MockInterface given\.$#'
+			identifier: argument.type
+			count: 1
+			path: tests/Unit/RetrievalEvaluationServiceTest.php
+
+		-
+			message: '#^Property EvaluationEmbeddingRepository\:\:\$results \(list\<array\{record\: App\\Infrastructure\\Knowledge\\Persistence\\KnowledgeDocumentRecord, score\: float\}\>\) does not accept array\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: tests/Unit/RetrievalEvaluationServiceTest.php

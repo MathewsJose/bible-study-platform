@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property string $id
@@ -75,5 +76,17 @@ final class KnowledgeDocumentRecord extends Model
     protected static function newFactory(): Factory
     {
         return KnowledgeDocumentRecordFactory::new();
+    }
+
+    /** @return HasMany<KnowledgeDocumentRelationshipRecord, $this> */
+    public function outgoingRelationships(): HasMany
+    {
+        return $this->hasMany(KnowledgeDocumentRelationshipRecord::class, 'source_document_id');
+    }
+
+    /** @return HasMany<KnowledgeDocumentRelationshipRecord, $this> */
+    public function incomingRelationships(): HasMany
+    {
+        return $this->hasMany(KnowledgeDocumentRelationshipRecord::class, 'target_document_id');
     }
 }

@@ -520,6 +520,81 @@ MRR: 0.790
 Average latency: 120 ms
 ```
 
+## Knowledge Graph Engine
+
+The Knowledge Graph Engine stores explicit relationships between imported `knowledge_documents`. It does not infer relationships with AI and it does not change vector, lexical, hybrid, or evaluation behavior.
+
+Architecture:
+
+```text
+knowledge_documents metadata
+  -> ReferenceResolverInterface implementations
+  -> KnowledgeGraphBuilder
+  -> KnowledgeGraphRepositoryInterface
+  -> knowledge_document_relationships
+  -> diagnostics and related-document services
+```
+
+Supported relationship types:
+
+- `SCRIPTURE_REFERENCE`
+- `CATECHISM_REFERENCE`
+- `CHURCH_FATHER_REFERENCE`
+- `RELATED_VERSE`
+- `SAME_TOPIC`
+- `PART_OF`
+- `COMMENTS_ON`
+- `REFERENCES`
+- `FULFILLS`
+- `QUOTES`
+
+Graph edges are stored in `knowledge_document_relationships` with source document, target document, relationship type, confidence, provenance, metadata, and timestamps. A unique edge index prevents duplicate relationships for the same source, target, and type. Relationship type is a string field so future explicit types can be added without a schema change.
+
+Current resolvers:
+
+- `ScriptureReferenceResolver`: resolves `scripture_references` and scripture-shaped `cross_references` to Bible documents.
+- `CatechismReferenceResolver`: resolves `internal_references`, `catechism_references`, and `CCC 123` references in `cross_references`.
+- `ChurchFatherReferenceResolver`: resolves explicit patristic references to Church Father documents.
+
+CLI usage:
+
+```bash
+php artisan graph:rebuild
+php artisan graph:rebuild --source-type=catechism
+php artisan graph:update --document-id=UUID
+php artisan graph:verify
+php artisan knowledge:status
+```
+
+`graph:rebuild` and `graph:update` rebuild outgoing relationships for the selected documents. This removes stale edges when metadata changes and recreates only relationships whose targets can be resolved in the existing corpus.
+
+Diagnostics include:
+
+- total graph nodes
+- total graph edges
+- relationship counts
+- disconnected nodes
+- duplicate relationships
+- broken references
+- average degree
+- graph density
+
+Application services:
+
+- `KnowledgeGraphBuilder`: scans documents, resolves explicit references, persists relationships, logs progress, and dispatches graph events.
+- `KnowledgeGraphDiagnosticsService`: produces integrity and connectivity metrics.
+- `RelatedDocumentsService`: returns related documents grouped by relationship type for future navigation and RAG workflows.
+- `KnowledgeGraphRepositoryInterface`: keeps relationship, traversal, count, and diagnostics queries behind one persistence boundary.
+
+Graph events:
+
+- `DocumentImported`
+- `RelationshipCreated`
+- `RelationshipRemoved`
+- `GraphUpdated`
+
+To add a future graph source, implement `ReferenceResolverInterface`, read only explicit references from metadata or trusted source fields, resolve to existing `knowledge_documents`, and register the resolver in `AppServiceProvider` where `KnowledgeGraphBuilder` is bound.
+
 ## Import Pipeline
 
 Sprint 8 introduces a source-agnostic import framework. Importers no longer own persistence in the primary pipeline; they only fetch, normalize, and validate source material.
