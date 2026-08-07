@@ -732,6 +732,133 @@ Metadata filters supported by the engine:
 
 Diagnostics include stage timings, vector/lexical/graph result counts, expansion statistics, selected profile, and context size. These diagnostics are intended for future retrieval evaluation work such as graph contribution, expansion contribution, reranking improvement, and profile comparison.
 
+## AI Answer Service
+
+Sprint 14 adds a provider-independent AI Answer Engine on top of the retrieval engine. It does not generate answers without retrieval, and domain services depend only on `LLMProviderInterface`.
+
+Answer pipeline:
+
+```text
+Question
+  -> Advanced Retrieval Engine
+  -> CitationBuilder
+  -> PromptBuilder
+  -> LLMProviderInterface
+  -> ResponseValidator
+  -> ConfidenceScorer
+  -> AnswerData DTO
+```
+
+Provider abstraction:
+
+- `LLMProviderInterface`: completion, streaming-ready iterable output, token counting, metadata, provider identifier.
+- `NullProvider`: safe default for local development and tests.
+- `OpenAIProvider`: HTTP-based chat completion adapter.
+- `OllamaProvider`: local Ollama chat adapter.
+- `GeminiProvider` and `ClaudeProvider`: provider-specific adapter placeholders using the shared HTTP boundary for future completion.
+
+Configuration lives in `config/ai.php`:
+
+```env
+AI_PROVIDER=null
+AI_MODEL=null-answer-model
+AI_TEMPERATURE=0
+AI_MAX_TOKENS=800
+AI_TIMEOUT=30
+AI_RETRY_ATTEMPTS=2
+AI_RETRY_SLEEP_MS=250
+AI_ANSWER_ONLY_FROM_CONTEXT=true
+AI_REQUIRE_CITATIONS=true
+OPENAI_API_KEY=
+OPENAI_CHAT_URL=https://api.openai.com/v1/chat/completions
+OLLAMA_CHAT_URL=http://ollama:11434/api/chat
+```
+
+API:
+
+```http
+POST /api/answers
+```
+
+```json
+{
+  "question": "Why did Jesus become man?",
+  "profile": "ai_answer",
+  "filters": {
+    "source_types": ["catechism", "bible_verse"],
+    "tradition": "catholic"
+  }
+}
+```
+
+Response shape:
+
+```json
+{
+  "data": {
+    "question": "Why did Jesus become man?",
+    "answer": "Jesus became man for our salvation [1].",
+    "citations": [
+      {
+        "number": 1,
+        "reference": "CCC 457",
+        "source_type": "catechism",
+        "source_name": "Catechism of the Catholic Church"
+      }
+    ],
+    "confidence": {
+      "score": 0.84,
+      "signals": {
+        "retrieval_score": 0.91,
+        "citation_coverage": 1,
+        "source_authority": 1,
+        "graph_support": 0.5
+      }
+    },
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "warnings": [],
+    "diagnostics": {
+      "timings_ms": {
+        "retrieval": 42,
+        "prompt_builder": 1,
+        "llm_provider": 830,
+        "validation_confidence": 0,
+        "total": 873
+      }
+    }
+  }
+}
+```
+
+CLI:
+
+```bash
+php artisan ai:answer "Why did Jesus become man?" --profile=ai_answer
+```
+
+Prompt Builder:
+
+- inserts system guardrails
+- orders retrieved context with citation numbers
+- preserves provenance
+- estimates prompt tokens
+- accepts future conversation history
+
+Citation Builder returns structured objects for Bible verses, Catechism paragraphs, Church Fathers, and future source types. The answer text is expected to cite supporting sources with bracketed numbers such as `[1]`.
+
+Confidence scoring is deterministic and does not ask the LLM to grade itself. It considers retrieval score, citation coverage, source authority, and graph support, returning a normalized `0.0..1.0` score with explanations and signal breakdowns.
+
+Response validation returns warnings for empty responses, missing citations, missing evidence, and prompt-failure or hallucination indicators. Guardrails are provider-independent and configurable.
+
+Conversation readiness interfaces are present for future chat work:
+
+- `ConversationContextInterface`
+- `MemoryProviderInterface`
+- `SessionContextInterface`
+
+Answer evaluation scaffolding is provided by `AnswerEvaluationService` for groundedness, citation coverage, faithfulness, response completeness, and latency. Future benchmark datasets can build on this without changing provider implementations.
+
 ## Import Pipeline
 
 Sprint 8 introduces a source-agnostic import framework. Importers no longer own persistence in the primary pipeline; they only fetch, normalize, and validate source material.

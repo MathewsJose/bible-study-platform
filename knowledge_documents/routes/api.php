@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Presentation\Http\Controllers\AnswerController;
 use App\Presentation\Http\Controllers\KnowledgeDocumentController;
 use App\Presentation\Http\Controllers\RetrievalController;
 use App\Presentation\Http\Controllers\RetrievalEvaluationController;
@@ -20,3 +21,4 @@ Route::prefix('documents')->group(function (): void {
 
 Route::post('/evaluations/retrieval', [RetrievalEvaluationController::class, 'store']);
 Route::post('/retrieval', [RetrievalController::class, 'store']);
+Route::post('/answers', [AnswerController::class, 'store']);

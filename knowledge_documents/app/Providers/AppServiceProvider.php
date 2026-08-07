@@ -8,6 +8,7 @@ use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
 use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Application\Knowledge\Contracts\ResultFusionStrategyInterface;
+use App\Application\Knowledge\Answering\Contracts\LLMProviderInterface;
 use App\Application\Knowledge\Graph\Contracts\KnowledgeGraphRepositoryInterface;
 use App\Application\Knowledge\Graph\Resolvers\CatechismReferenceResolver;
 use App\Application\Knowledge\Graph\Resolvers\ChurchFatherReferenceResolver;
@@ -19,6 +20,11 @@ use App\Infrastructure\Knowledge\Embedding\DummyEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\LocalEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\NullEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\OpenAIEmbeddingProvider;
+use App\Infrastructure\Knowledge\AI\ClaudeProvider;
+use App\Infrastructure\Knowledge\AI\GeminiProvider;
+use App\Infrastructure\Knowledge\AI\NullProvider;
+use App\Infrastructure\Knowledge\AI\OllamaProvider;
+use App\Infrastructure\Knowledge\AI\OpenAIProvider as OpenAIAnswerProvider;
 use App\Infrastructure\Knowledge\Importers\BibleImporter;
 use App\Infrastructure\Knowledge\Importers\CatechismImporter;
 use App\Infrastructure\Knowledge\Importers\ChurchFatherImporter;
@@ -42,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ResultFusionStrategyInterface::class, WeightedScoreFusionStrategy::class);
         $this->app->bind(KnowledgeGraphRepositoryInterface::class, EloquentKnowledgeGraphRepository::class);
         $this->app->bind(EmbeddingProviderInterface::class, fn (): EmbeddingProviderInterface => $this->app->make($this->embeddingProviderClass()));
+        $this->app->bind(LLMProviderInterface::class, fn (): LLMProviderInterface => $this->app->make($this->llmProviderClass()));
         $this->app->bind(KnowledgeGraphBuilder::class, fn (): KnowledgeGraphBuilder => new KnowledgeGraphBuilder(
             $this->app->make(KnowledgeGraphRepositoryInterface::class),
             [
@@ -81,6 +88,17 @@ class AppServiceProvider extends ServiceProvider
             'local' => LocalEmbeddingProvider::class,
             'dummy' => DummyEmbeddingProvider::class,
             default => NullEmbeddingProvider::class,
+        };
+    }
+
+    private function llmProviderClass(): string
+    {
+        return match (config('ai.provider', 'null')) {
+            'openai' => OpenAIAnswerProvider::class,
+            'ollama' => OllamaProvider::class,
+            'gemini' => GeminiProvider::class,
+            'claude' => ClaudeProvider::class,
+            default => NullProvider::class,
         };
     }
 }
