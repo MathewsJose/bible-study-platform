@@ -522,14 +522,123 @@ Average latency: 120 ms
 
 ## Import Pipeline
 
-The import boundary starts with `DocumentImporterInterface` and concrete importers:
+Sprint 8 introduces a source-agnostic import framework. Importers no longer own persistence in the primary pipeline; they only fetch, normalize, and validate source material.
 
-- `BibleImporter`
-- `DouayRheimsImporter`
-- `CatechismImporter`
-- `ChurchFatherImporter`
+```text
+KnowledgeImporterInterface
+  -> fetch RawKnowledgeDocument
+  -> normalize NormalizedKnowledgeDocument DTOs
+  -> validate ValidationResult
+  -> ImportPipeline
+  -> KnowledgeDocumentPersistenceService
+  -> knowledge_documents
+  -> EmbeddingGenerationService queue dispatch
+  -> ImportManifest report
+```
 
-They share `AbstractDocumentImporter`, which keeps ingestion extensible while still relying on the same application service used by the API.
+Registered sources:
+
+- `bible`: Bible chapter JSON files.
+- `catechism`: Catechism JSON, CCC JSON, text, and Markdown files.
+- `church_fathers`: Church Fathers JSON, text, and Markdown files.
+
+Core classes:
+
+- `KnowledgeImporterInterface`: source plugin boundary.
+- `DocumentNormalizerInterface`: converts raw source files to normalized DTOs.
+- `ImportValidatorInterface`: validates source payloads before persistence.
+- `KnowledgeSourceRegistry`: registers, lists, resolves, and duplicate-checks importers.
+- `ImportPipeline`: orchestrates fetch, normalize, validate, persist, embedding dispatch, structured logging, and report generation.
+- `KnowledgeDocumentPersistenceService`: the only import framework class that writes `knowledge_documents`.
+- DTOs: `RawKnowledgeDocument`, `NormalizedKnowledgeDocument`, `ValidationResult`, and `ImportPipelineResult`.
+
+Provenance is stored in each document's `metadata` without changing the `knowledge_documents` schema:
+
+- `source_identifier`
+- `source_version`
+- `source_path`
+- `source_checksum`
+- `content_checksum`
+- `imported_at`
+- `language`
+- `license`
+- `license_url`
+- `rights_notes`
+
+CLI usage:
+
+```bash
+php artisan knowledge:sources
+php artisan knowledge:import all --skip-unchanged
+php artisan knowledge:import bible --skip-unchanged
+php artisan knowledge:import catechism --force
+php artisan knowledge:import church_fathers --no-embeddings
+php artisan knowledge:verify
+php artisan knowledge:status
+```
+
+The legacy `php artisan knowledge` alias still imports all configured directories. Import directories are configured with:
+
+```env
+KNOWLEDGE_IMPORT_DIRECTORIES=storage/app/imports
+```
+
+Docker manual verification:
+
+```bash
+docker compose exec app php artisan knowledge:sources
+docker compose exec app php artisan knowledge:import all --skip-unchanged
+docker compose exec app php artisan knowledge:verify
+docker compose exec app php artisan knowledge:status
+docker compose exec app php artisan embeddings:generate
+```
+
+To add a new source such as Vatican II documents:
+
+1. Create a class that implements `KnowledgeImporterInterface`, or extend `AbstractFileKnowledgeImporter`.
+2. Return a stable `identifier()`, human `displayName()`, `version()`, supported languages, and licensing metadata.
+3. Implement `supports()` for source detection.
+4. Implement `fetch()`, `normalize()`, and `validate()` so the importer returns `NormalizedKnowledgeDocument` DTOs.
+5. Register the class in `config/knowledge.php` under `knowledge.import.sources`.
+
+Example skeleton:
+
+```php
+final class VaticanIiKnowledgeImporter extends AbstractFileKnowledgeImporter
+{
+    public function identifier(): string
+    {
+        return 'vatican_ii';
+    }
+
+    public function displayName(): string
+    {
+        return 'Vatican II';
+    }
+
+    public function supports(string $path): bool
+    {
+        return str_contains(strtolower(basename($path)), 'vatican-ii');
+    }
+
+    public function normalize(RawKnowledgeDocument $rawDocument): array
+    {
+        return [
+            new NormalizedKnowledgeDocument(
+                sourceType: 'council_document',
+                sourceName: 'Vatican II',
+                tradition: 'catholic',
+                reference: 'Dei Verbum 1',
+                title: 'Dei Verbum',
+                content: trim($rawDocument->contents),
+                language: $this->language($rawDocument),
+                checksum: hash('sha256', trim($rawDocument->contents)),
+                metadata: $this->provenance($rawDocument),
+            ),
+        ];
+    }
+}
+```
 
 Detailed instructions for the import workflow, including file formats and the Douay-Rheims Bible import, can be found in [docs/import-workflow.md](docs/import-workflow.md).
 

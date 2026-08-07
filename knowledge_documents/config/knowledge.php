@@ -8,6 +8,11 @@ return [
     ],
     'import' => [
         'directories' => array_filter(array_map('trim', explode(',', env('KNOWLEDGE_IMPORT_DIRECTORIES', 'storage/app/imports')))),
+        'sources' => [
+            App\Infrastructure\Knowledge\Importing\BibleKnowledgeImporter::class,
+            App\Infrastructure\Knowledge\Importing\CatechismKnowledgeImporter::class,
+            App\Infrastructure\Knowledge\Importing\ChurchFathersKnowledgeImporter::class,
+        ],
     ],
     'hybrid_search' => [
         'weights' => [

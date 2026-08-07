@@ -42,7 +42,7 @@ class ChurchFatherImportTest extends TestCase
 
         config(['knowledge.import.directories' => [$dir]]);
 
-        $status = Artisan::call('knowledge');
+        $status = Artisan::call('knowledge', ['--no-embeddings' => true]);
         
         $this->assertEquals(0, $status);
         
@@ -57,7 +57,7 @@ class ChurchFatherImportTest extends TestCase
 
         $this->assertDatabaseHas('import_manifests', [
             'source_name' => 'St. Augustine, Confessions',
-            'source_type' => SourceType::ChurchFather->value,
+            'source_type' => 'church_fathers',
             'records_created' => 1,
         ]);
 

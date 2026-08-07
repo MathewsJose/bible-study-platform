@@ -54,13 +54,20 @@ class MetadataStandardTest extends TestCase
 
     public function test_knowledge_import_includes_metadata_from_options(): void
     {
-        $path = storage_path('app/test_catechism.txt');
+        $directory = storage_path('app/metadata-standard-test');
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        $path = $directory.'/test_catechism.txt';
         file_put_contents($path, "Paragraph 1\n\nParagraph 2");
 
         try {
-            config(['knowledge.import.directories' => [storage_path('app')]]);
+            config(['knowledge.import.directories' => [$directory]]);
 
             $this->artisan('knowledge:import', [
+                'source' => 'catechism',
+                '--no-embeddings' => true,
                 '--source-url' => 'https://example.com/catechism',
                 '--license' => 'Copyright Vatican',
                 '--language' => 'la',
@@ -76,6 +83,10 @@ class MetadataStandardTest extends TestCase
         } finally {
             if (file_exists($path)) {
                 unlink($path);
+            }
+
+            if (is_dir($directory)) {
+                rmdir($directory);
             }
         }
     }

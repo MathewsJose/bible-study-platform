@@ -53,6 +53,17 @@ final readonly class EmbeddingGenerationService
     public function dispatch(array $options = [], ?callable $advance = null): EmbeddingDispatchResult
     {
         $ids = $this->embeddingIds($options);
+
+        return $this->dispatchDocumentIds($ids, $options, $advance);
+    }
+
+    /**
+     * @param  list<string>  $ids
+     * @param  array<string, mixed>  $options
+     * @param  null|callable(int): void  $advance
+     */
+    public function dispatchDocumentIds(array $ids, array $options = [], ?callable $advance = null): EmbeddingDispatchResult
+    {
         $batchSize = $this->batchSize($options);
         $chunks = array_chunk($ids, $batchSize);
 

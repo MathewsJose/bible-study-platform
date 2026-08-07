@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Application\Knowledge\DTOs\ImportResult;
-use App\Infrastructure\Knowledge\Importers\BibleImporter;
+use App\Application\Knowledge\Importing\Services\ImportPipeline;
+use App\Application\Knowledge\Importing\Services\KnowledgeSourceRegistry;
 use Illuminate\Console\Command;
-use Illuminate\Validation\ValidationException;
-use JsonException;
 
 final class BibleImportCommand extends Command
 {
@@ -22,7 +21,7 @@ final class BibleImportCommand extends Command
 
     protected $description = 'Import Bible verses from a JSON chapter file into knowledge documents.';
 
-    public function handle(BibleImporter $importer): int
+    public function handle(KnowledgeSourceRegistry $sources, ImportPipeline $pipeline): int
     {
         $path = $this->resolvePath((string) $this->argument('path'));
 
@@ -33,38 +32,41 @@ final class BibleImportCommand extends Command
             return self::FAILURE;
         }
 
-        try {
-            $metadata = array_filter([
-                'source_url' => $this->option('source-url'),
-                'license' => $this->option('license'),
-                'license_url' => $this->option('license-url'),
-                'rights_notes' => $this->option('rights-notes'),
-                'language' => $this->option('language'),
-            ]);
+        $metadata = array_filter([
+            'source_url' => $this->option('source-url'),
+            'license' => $this->option('license'),
+            'license_url' => $this->option('license-url'),
+            'rights_notes' => $this->option('rights-notes'),
+            'language' => $this->option('language'),
+        ]);
 
-            $result = $importer->importFile($path, $metadata);
-        } catch (ValidationException $exception) {
-            $this->error('Bible import validation failed.');
+        $result = $pipeline->import($sources->resolve('bible'), $path, $metadata, [
+            'force' => true,
+            'skip_unchanged' => false,
+        ]);
 
-            foreach ($exception->errors() as $messages) {
-                foreach ($messages as $message) {
-                    $this->line($message);
-                }
+        if ($result->failed > 0) {
+            $this->error(str_contains(implode(' ', $result->errors), 'JSON is invalid')
+                ? implode(' ', $result->errors)
+                : 'Bible import validation failed.');
+
+            foreach ($result->errors as $error) {
+                $this->line($error);
             }
 
-            $this->displayResult(new ImportResult(failures: 1));
-
-            return self::FAILURE;
-        } catch (JsonException $exception) {
-            $this->error('Bible import JSON is invalid: '.$exception->getMessage());
-            $this->displayResult(new ImportResult(failures: 1));
+            $this->displayResult(new ImportResult(failures: $result->failed));
 
             return self::FAILURE;
         }
 
-        $this->displayResult($result);
+        $this->displayResult(new ImportResult(
+            created: $result->created,
+            updated: $result->updated,
+            skipped: $result->skipped,
+            failures: $result->failed,
+        ));
 
-        return $result->failures === 0 ? self::SUCCESS : self::FAILURE;
+        return self::SUCCESS;
     }
 
     private function displayResult(ImportResult $result): void

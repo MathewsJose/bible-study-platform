@@ -50,7 +50,7 @@ class CatechismImportTest extends TestCase
 
         config(['knowledge.import.directories' => [$dir]]);
 
-        $status = Artisan::call('knowledge');
+        $status = Artisan::call('knowledge', ['--no-embeddings' => true]);
         $output = Artisan::output();
         
         $this->assertEquals(0, $status, "Output: " . $output);

@@ -4,13 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Application\Knowledge\DTOs\ImportResult;
-use App\Infrastructure\Knowledge\Importers\BibleImporter;
-use App\Infrastructure\Knowledge\Importers\DouayRheimsImporter;
-use App\Infrastructure\Knowledge\Importers\CatechismImporter;
-use App\Infrastructure\Knowledge\Importers\ModernCatechismImporter;
-use App\Infrastructure\Knowledge\Importers\ChurchFatherImporter;
-use App\Infrastructure\Knowledge\Importers\ImportManifest;
+use App\Application\Knowledge\Importing\Contracts\KnowledgeImporterInterface;
+use App\Application\Knowledge\Importing\Services\ImportPipeline;
+use App\Application\Knowledge\Importing\Services\KnowledgeSourceRegistry;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use SplFileInfo;
@@ -18,7 +14,11 @@ use Symfony\Component\Finder\Finder;
 
 final class KnowledgeImportCommand extends Command
 {
-    protected $signature = 'knowledge
+    protected $signature = 'knowledge:import
+                            {source=all : Source identifier to import, or all}
+                            {--skip-unchanged : Skip files whose checksum was already imported}
+                            {--force : Import even when the file checksum was already imported}
+                            {--no-embeddings : Do not queue embedding generation after persistence}
                             {--source-url= : The source URL of the data}
                             {--license= : The license of the data}
                             {--license-url= : The URL to the license text}
@@ -26,33 +26,20 @@ final class KnowledgeImportCommand extends Command
                             {--language=en : The language of the documents}';
 
     /** @var list<string> */
-    protected $aliases = ['knowledge:import'];
+    protected $aliases = ['knowledge'];
 
-    protected $description = 'Scan configured import directories, detect files, and import supported documents.';
-
-    /** @var array<string, callable> */
-    private array $importers;
+    protected $description = 'Import knowledge documents through the source registry and import pipeline.';
 
     public function __construct(
-        private readonly BibleImporter $bibleImporter,
-        private readonly DouayRheimsImporter $douayRheimsImporter,
-        private readonly CatechismImporter $catechismImporter,
-        private readonly ModernCatechismImporter $modernCatechismImporter,
-        private readonly ChurchFatherImporter $churchFatherImporter,
+        private readonly KnowledgeSourceRegistry $sources,
+        private readonly ImportPipeline $pipeline,
     ) {
         parent::__construct();
-
-        $this->importers = [
-            'bible' => fn (string $path, array $metadata = []): ImportResult => $this->bibleImporter->importFile($path, $metadata),
-            'douay_rheims' => fn (string $path, array $metadata = []): ImportResult => $this->douayRheimsImporter->importFile($path, $metadata),
-            'catechism' => fn (string $path, array $metadata = []): ImportResult => $this->catechismImporter->importFile($path, $metadata),
-            'ccc' => fn (string $path, array $metadata = []): ImportResult => $this->modernCatechismImporter->importFile($path, $metadata),
-            'church_father' => fn (string $path, array $metadata = []): ImportResult => $this->churchFatherImporter->importFile($path, $metadata),
-        ];
     }
 
     public function handle(): int
     {
+        $source = (string) $this->argument('source');
         $directories = config('knowledge.import.directories', []);
         $files = $this->collectFiles($directories);
 
@@ -65,8 +52,10 @@ final class KnowledgeImportCommand extends Command
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
         $imported = 0;
+        $updated = 0;
         $skipped = 0;
         $failed = 0;
+        $embeddingsQueued = 0;
         $filesScanned = 0;
         $filesImported = 0;
         $filesSkipped = 0;
@@ -80,32 +69,32 @@ final class KnowledgeImportCommand extends Command
 
             $filesScanned++;
 
-            $fileType = $this->detectFileType($path);
-            if ($fileType === null) {
+            $importer = $this->resolveImporter($source, $path);
+            if (! $importer instanceof KnowledgeImporterInterface) {
                 continue;
             }
 
-            if ($this->isAlreadyImported($path)) {
-                $skipped++;
-                $filesSkipped++;
-                continue;
-            }
+            $result = $this->pipeline->import($importer, $path, $metadata, [
+                'skip_unchanged' => true,
+                'force' => (bool) $this->option('force'),
+                'queue_embeddings' => ! (bool) $this->option('no-embeddings'),
+            ]);
 
-            try {
-                $result = $this->importers[$fileType]($path, $metadata);
+            $imported += $result->created;
+            $updated += $result->updated;
+            $skipped += $result->skipped;
+            $failed += $result->failed;
+            $embeddingsQueued += $result->embeddingsQueued;
 
-                $imported += $result->created;
-                $skipped += $result->skipped;
-                $failed += $result->failures;
+            if ($result->failed === 0 && $result->imported() > 0) {
                 $filesImported++;
-
-                if ($result->failures > 0) {
-                    $filesFailed++;
-                }
-            } catch (\Throwable $exception) {
-                $failed++;
+            } elseif ($result->failed > 0) {
                 $filesFailed++;
-                $this->error("Failed to import {$path}: {$exception->getMessage()}");
+                foreach ($result->errors as $error) {
+                    $this->error("Failed to import {$path}: {$error}");
+                }
+            } else {
+                $filesSkipped++;
             }
         }
 
@@ -114,8 +103,10 @@ final class KnowledgeImportCommand extends Command
         $this->line("files skipped: {$filesSkipped}");
         $this->line("files failed: {$filesFailed}");
         $this->line("imported: {$imported}");
+        $this->line("updated: {$updated}");
         $this->line("skipped: {$skipped}");
         $this->line("failed: {$failed}");
+        $this->line("embeddings queued: {$embeddingsQueued}");
 
         return $failed === 0 ? self::SUCCESS : self::FAILURE;
     }
@@ -156,51 +147,14 @@ final class KnowledgeImportCommand extends Command
         return base_path($directory);
     }
 
-    private function detectFileType(string $path): ?string
+    private function resolveImporter(string $source, string $path): ?KnowledgeImporterInterface
     {
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        if ($extension === 'json') {
-            $lowerPath = strtolower($path);
-            if (str_contains($lowerPath, 'douay-rheims')) {
-                return 'douay_rheims';
-            }
+        if ($source !== 'all') {
+            $importer = $this->sources->resolve($source);
 
-            if (str_contains($lowerPath, 'ccc') || str_contains($lowerPath, 'modern-catechism')) {
-                return 'ccc';
-            }
-
-            if (str_contains($lowerPath, 'catechism')) {
-                return 'catechism';
-            }
-
-            if (str_contains($lowerPath, 'church-father') || str_contains($lowerPath, 'church_father')) {
-                return 'church_father';
-            }
-
-            return 'bible';
+            return $importer->supports($path) ? $importer : null;
         }
 
-        if (in_array($extension, ['txt', 'md'], true)) {
-            $basename = strtolower(basename($path));
-            if (str_contains($basename, 'catechism')) {
-                return 'catechism';
-            }
-
-            if (str_contains($basename, 'church') || str_contains($basename, 'father')) {
-                return 'church_father';
-            }
-
-            return 'catechism';
-        }
-
-        return null;
+        return $this->sources->detect($path);
     }
-
-    private function isAlreadyImported(string $path): bool
-    {
-        $hash = hash_file('sha256', $path);
-
-        return ImportManifest::query()->where('checksum', $hash)->where('status', 'completed')->exists();
-    }
-
 }

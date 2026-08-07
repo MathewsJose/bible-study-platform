@@ -54,7 +54,7 @@ it('imports multiple supported files from configured directories and records man
 
     config()->set('knowledge.import.directories', [$importRoot]);
 
-    $status = Artisan::call('knowledge');
+    $status = Artisan::call('knowledge', ['--no-embeddings' => true]);
     $output = Artisan::output();
 
     expect($status)->toBe(Command::SUCCESS)
@@ -72,7 +72,7 @@ it('imports multiple supported files from configured directories and records man
         'source_type' => 'bible',
         'records_created' => 2,
         'status' => 'completed',
-        'importer' => 'BibleImporter',
+        'importer' => 'bible',
     ]);
     assertDatabaseHas('knowledge_documents', [
         'source_type' => SourceType::BibleVerse->value,
@@ -83,7 +83,7 @@ it('imports multiple supported files from configured directories and records man
         'source_type' => 'catechism',
         'records_created' => 2,
         'status' => 'completed',
-        'importer' => 'CatechismImporter',
+        'importer' => 'catechism',
     ]);
     assertDatabaseHas('knowledge_documents', [
         'source_type' => SourceType::Catechism->value,
@@ -100,7 +100,7 @@ it('imports multiple supported files from configured directories and records man
         'source_name' => 'Catechism of the Catholic Church',
         'records_created' => 2,
         'status' => 'completed',
-        'importer' => 'ModernCatechismImporter',
+        'importer' => 'catechism',
     ]);
     assertDatabaseHas('knowledge_documents', [
         'source_type' => SourceType::Catechism->value,
@@ -124,10 +124,10 @@ it('skips files that were already imported in a previous run', function (): void
 
     config()->set('knowledge.import.directories', [$importRoot]);
 
-    $firstStatus = Artisan::call('knowledge');
+    $firstStatus = Artisan::call('knowledge', ['--no-embeddings' => true]);
     expect($firstStatus)->toBe(Command::SUCCESS);
 
-    $secondStatus = Artisan::call('knowledge');
+    $secondStatus = Artisan::call('knowledge', ['--no-embeddings' => true]);
     $secondOutput = Artisan::output();
 
     expect($secondStatus)->toBe(Command::SUCCESS)
@@ -153,7 +153,7 @@ it('records failed manifests when an error occurs', function (): void {
 
     config()->set('knowledge.import.directories', [$importRoot]);
 
-    $status = Artisan::call('knowledge');
+    $status = Artisan::call('knowledge', ['--no-embeddings' => true]);
     $output = Artisan::output();
 
     expect($status)->toBe(Command::FAILURE)
@@ -163,7 +163,7 @@ it('records failed manifests when an error occurs', function (): void {
     assertDatabaseHas('import_manifests', [
         'source_type' => 'bible',
         'status' => 'failed',
-        'importer' => 'BibleImporter',
+        'importer' => 'bible',
     ]);
 
     $manifest = ImportManifest::query()->where('source_type', 'bible')->where('status', 'failed')->first();
