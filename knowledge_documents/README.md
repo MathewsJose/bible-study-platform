@@ -593,6 +593,168 @@ docker compose exec app php artisan knowledge:status
 docker compose exec app php artisan embeddings:generate
 ```
 
+### Bible Importer
+
+The Bible source importer implements `KnowledgeImporterInterface` and participates in the same DTO pipeline as every other knowledge source. It never writes directly to the database.
+
+Supported Bible JSON formats:
+
+Single chapter:
+
+```json
+{
+  "translation": "douay-rheims",
+  "language": "en",
+  "source_edition": "Public domain edition",
+  "book": "John",
+  "book_abbreviation": "Jn",
+  "testament": "New Testament",
+  "chapter": 1,
+  "verses": [
+    {
+      "verse": 14,
+      "text": "And the Word was made flesh.",
+      "cross_references": ["John 1:1", "Philippians 2:6-11"]
+    }
+  ]
+}
+```
+
+Complete or multi-book file:
+
+```json
+{
+  "translation": "public-domain-test",
+  "language": "en",
+  "books": [
+    {
+      "book": "Genesis",
+      "abbreviation": "Gen",
+      "chapters": [
+        {
+          "chapter": 1,
+          "verses": [
+            { "verse": 1, "text": "In the beginning..." }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+For every chapter, the importer creates:
+
+- `bible_verse` documents for each verse.
+- `bible_chapter` documents containing ordered full chapter text.
+
+Verse metadata includes:
+
+- `book`
+- `book_abbreviation`
+- `chapter`
+- `verse`
+- `testament`
+- `translation`
+- `language`
+- `tradition`
+- `canonical_book_order`
+- `canonical_order`
+- `source_edition`
+- `import_version`
+- `checksum`
+- `cross_references`
+
+Chapter metadata includes the same source and canonical fields plus `verse_count`, ordered `verses`, and aggregated supplied `cross_references`.
+
+Bible CLI examples:
+
+```bash
+php artisan knowledge:import bible
+php artisan knowledge:import bible --book=John
+php artisan knowledge:import bible --book=John --chapter=1
+php artisan knowledge:import bible --translation=douay-rheims
+php artisan knowledge:import bible --force
+php artisan knowledge:import bible --skip-unchanged
+```
+
+The importer preserves only cross references supplied in the source file. It does not infer or generate cross references. Use only Bible sources you have the right to import, such as public-domain, licensed, or user-supplied texts. No copyrighted Bible text is bundled or hard-coded.
+
+To add another Bible translation, place a compatible JSON file in a configured import directory and provide `translation`, `language`, license, and source edition metadata. No pipeline code changes are required.
+
+### Catechism Importer
+
+The Catechism importer also implements `KnowledgeImporterInterface` and uses the shared import pipeline. It supports user-supplied or licensed CCC paragraph JSON and the older Baltimore lesson format.
+
+CCC paragraph format:
+
+```json
+{
+  "catechism": "Catechism of the Catholic Church",
+  "language": "en",
+  "source_edition": "Second Edition",
+  "publication_year": 1997,
+  "paragraphs": [
+    {
+      "number": 456,
+      "title": "Why did the Word become flesh?",
+      "part": "Part I",
+      "section": "Section One",
+      "chapter": "Chapter Two",
+      "article": "Article 3",
+      "paragraph": "Paragraph 1",
+      "category": "christology",
+      "topics": ["incarnation", "salvation"],
+      "content": "The Word became flesh for us... See CCC 457 and John 1:14.",
+      "church_father_references": ["St. Athanasius, De Incarnatione"]
+    }
+  ]
+}
+```
+
+Each CCC paragraph becomes one `catechism` document with a stable reference such as `CCC 456`.
+
+CCC metadata includes:
+
+- `document_type`
+- `reference_number`
+- `paragraph_number`
+- `category`
+- `topics`
+- `hierarchy`
+- `part`
+- `section`
+- `chapter`
+- `article`
+- `paragraph`
+- `language`
+- `source_edition`
+- `publication_year`
+- `tradition`
+- `internal_references`
+- `scripture_references`
+- `church_father_references`
+- `checksum`
+
+The importer preserves official references supplied in the source and extracts explicit references already present in paragraph text. It does not infer AI-generated links.
+
+Cross-reference metadata:
+
+- `internal_references`: explicit `CCC 457` style Catechism links.
+- `scripture_references`: explicit Scripture references such as `John 1:14` or `Philippians 2:6-11`.
+- `church_father_references`: explicit patristic references supplied by the source.
+
+Catechism CLI examples:
+
+```bash
+php artisan knowledge:import catechism
+php artisan knowledge:import catechism --force
+php artisan knowledge:import catechism --skip-unchanged
+php artisan knowledge:status
+```
+
+To add another Catechism edition or translation, provide the same paragraph structure with edition, language, publication year, licensing, and source metadata. No retrieval, embedding, or pipeline changes are required.
+
 To add a new source such as Vatican II documents:
 
 1. Create a class that implements `KnowledgeImporterInterface`, or extend `AbstractFileKnowledgeImporter`.

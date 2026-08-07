@@ -25,11 +25,11 @@ it('imports Bible verses from JSON as knowledge documents', function (): void {
     $output = Artisan::output();
 
     expect($status)->toBe(Command::SUCCESS)
-        ->and($output)->toContain('documents imported: 2')
+        ->and($output)->toContain('documents imported: 3')
         ->and($output)->toContain('skipped duplicates: 0')
         ->and($output)->toContain('failures: 0');
 
-    assertDatabaseCount('knowledge_documents', 2);
+    assertDatabaseCount('knowledge_documents', 3);
     assertDatabaseHas('knowledge_documents', [
         'source_type' => SourceType::BibleVerse->value,
         'source_name' => BibleImporter::SOURCE_NAME,
@@ -54,7 +54,7 @@ it('skips duplicate Bible verse imports safely', function (): void {
     $firstOutput = Artisan::output();
 
     expect($firstStatus)->toBe(Command::SUCCESS)
-        ->and($firstOutput)->toContain('documents imported: 1')
+        ->and($firstOutput)->toContain('documents imported: 2')
         ->and($firstOutput)->toContain('skipped duplicates: 0')
         ->and($firstOutput)->toContain('failures: 0');
 
@@ -63,10 +63,10 @@ it('skips duplicate Bible verse imports safely', function (): void {
 
     expect($secondStatus)->toBe(Command::SUCCESS)
         ->and($secondOutput)->toContain('documents imported: 0')
-        ->and($secondOutput)->toContain('skipped duplicates: 1')
+        ->and($secondOutput)->toContain('skipped duplicates: 2')
         ->and($secondOutput)->toContain('failures: 0');
 
-    assertDatabaseCount('knowledge_documents', 1);
+    assertDatabaseCount('knowledge_documents', 2);
 });
 
 it('fails with validation details for invalid Bible JSON payloads', function (): void {

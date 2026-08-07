@@ -23,7 +23,11 @@ final class KnowledgeImportCommand extends Command
                             {--license= : The license of the data}
                             {--license-url= : The URL to the license text}
                             {--rights-notes= : Additional rights or copyright notes}
-                            {--language=en : The language of the documents}';
+                            {--language=en : The language of the documents}
+                            {--book= : Import only one Bible book}
+                            {--chapter= : Import only one Bible chapter}
+                            {--translation= : Override or filter the Bible translation identifier}
+                            {--source-edition= : The source edition label for imported documents}';
 
     /** @var list<string> */
     protected $aliases = ['knowledge'];
@@ -49,6 +53,10 @@ final class KnowledgeImportCommand extends Command
             'license_url' => $this->option('license-url'),
             'rights_notes' => $this->option('rights-notes'),
             'language' => $this->option('language'),
+            'book' => $this->option('book'),
+            'chapter' => $this->option('chapter'),
+            'translation' => $this->option('translation'),
+            'source_edition' => $this->option('source-edition'),
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
         $imported = 0;
@@ -75,7 +83,7 @@ final class KnowledgeImportCommand extends Command
             }
 
             $result = $this->pipeline->import($importer, $path, $metadata, [
-                'skip_unchanged' => true,
+                'skip_unchanged' => ! $this->hasDocumentFilters($metadata),
                 'force' => (bool) $this->option('force'),
                 'queue_embeddings' => ! (bool) $this->option('no-embeddings'),
             ]);
@@ -156,5 +164,16 @@ final class KnowledgeImportCommand extends Command
         }
 
         return $this->sources->detect($path);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function hasDocumentFilters(array $metadata): bool
+    {
+        return isset($metadata['book'], $metadata['chapter'])
+            || isset($metadata['book'])
+            || isset($metadata['chapter'])
+            || isset($metadata['translation']);
     }
 }

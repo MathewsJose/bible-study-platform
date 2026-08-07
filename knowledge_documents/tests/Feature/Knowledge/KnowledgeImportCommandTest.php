@@ -62,15 +62,15 @@ it('imports multiple supported files from configured directories and records man
         ->and($output)->toContain('files imported: 6')
         ->and($output)->toContain('files skipped: 0')
         ->and($output)->toContain('files failed: 0')
-        ->and($output)->toContain('imported: 10')
+        ->and($output)->toContain('imported: 12')
         ->and($output)->toContain('skipped: 0')
         ->and($output)->toContain('failed: 0');
 
-    assertDatabaseCount('knowledge_documents', 10);
+    assertDatabaseCount('knowledge_documents', 12);
     assertDatabaseCount('import_manifests', 6);
     assertDatabaseHas('import_manifests', [
         'source_type' => 'bible',
-        'records_created' => 2,
+        'records_created' => 3,
         'status' => 'completed',
         'importer' => 'bible',
     ]);

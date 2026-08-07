@@ -48,7 +48,7 @@ it('imports one requested source through the pipeline with provenance metadata',
 
     expect($status)->toBe(Command::SUCCESS);
 
-    assertDatabaseCount('knowledge_documents', 1);
+    assertDatabaseCount('knowledge_documents', 2);
     assertDatabaseHas('knowledge_documents', [
         'source_type' => SourceType::BibleVerse->value,
         'source_name' => 'Bible',
@@ -58,7 +58,7 @@ it('imports one requested source through the pipeline with provenance metadata',
         'source_type' => 'bible',
         'source_name' => 'Bible',
         'status' => 'completed',
-        'records_created' => 1,
+        'records_created' => 2,
     ]);
 
     $document = KnowledgeDocumentRecord::query()->where('reference', 'John 3:16')->firstOrFail();

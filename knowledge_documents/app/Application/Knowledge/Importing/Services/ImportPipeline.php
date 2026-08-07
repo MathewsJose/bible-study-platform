@@ -98,6 +98,7 @@ final readonly class ImportPipeline
                 'failed' => $result->failed,
                 'embeddings_queued' => $result->embeddingsQueued,
                 'duration_seconds' => $result->durationSeconds,
+                'memory_peak_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
             ]);
 
             return $result;
