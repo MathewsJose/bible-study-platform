@@ -164,7 +164,7 @@ it('reports validation problems for duplicate empty and missing expected referen
 
     expect($validation->totalQuestions)->toBe(2)
         ->and($validation->validQuestions)->toBe(0)
-        ->and($validation->invalidQuestions)->toBe(2)
+        ->and($validation->invalidQuestions)->toBe(1)
         ->and($validation->missingReferences[0]['references'])->toBe(['CCC 999'])
         ->and($validation->invalidSourceTypes[0]['source_types'])->toBe(['invalid'])
         ->and($validation->duplicateExpectedReferences[0]['references'])->toBe(['CCC 457'])

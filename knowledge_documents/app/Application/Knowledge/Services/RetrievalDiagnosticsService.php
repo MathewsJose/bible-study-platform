@@ -38,8 +38,9 @@ final readonly class RetrievalDiagnosticsService
         return $this->evaluationQuestions($questionId)
             ->map(function (EvaluationQuestionRecord $question): array {
                 $expectedReferences = $this->strings($question->expected_references ?? []);
+                $intendedReferences = $this->strings($question->intended_references ?? $question->expected_references ?? []);
                 $documentsByReference = KnowledgeDocumentRecord::query()
-                    ->whereIn('reference', $expectedReferences)
+                    ->whereIn('reference', $intendedReferences)
                     ->get(['reference', 'source_type', 'source_name', 'content'])
                     ->keyBy('reference');
 
@@ -47,7 +48,10 @@ final readonly class RetrievalDiagnosticsService
                     'question_id' => $question->id,
                     'question' => $question->question,
                     'category' => $question->category,
+                    'coverage_status' => $question->coverage_status,
+                    'intended_references' => $intendedReferences,
                     'expected_references' => $expectedReferences,
+                    'missing_references' => $this->strings($question->missing_references ?? []),
                     'expected_source_types' => $this->strings($question->expected_source_types ?? []),
                     'expected_documents' => array_map(
                         function (string $reference) use ($documentsByReference): array {
@@ -62,12 +66,27 @@ final readonly class RetrievalDiagnosticsService
                                 'content_length' => $document === null ? null : mb_strlen($document->content),
                             ];
                         },
-                        $expectedReferences,
+                        $intendedReferences,
                     ),
                 ];
             })
             ->values()
             ->all();
+    }
+
+    /** @return array{defined: int, stored: int, fully_covered: int, partially_covered: int, unavailable: int, evaluable: int} */
+    public function evaluationCoverage(?string $questionId = null): array
+    {
+        $questions = $this->evaluationQuestions($questionId);
+
+        return [
+            'defined' => $questions->count(),
+            'stored' => $questions->count(),
+            'fully_covered' => $questions->where('coverage_status', 'fully_covered')->count(),
+            'partially_covered' => $questions->where('coverage_status', 'partially_covered')->count(),
+            'unavailable' => $questions->where('coverage_status', 'unavailable')->count(),
+            'evaluable' => $questions->filter(fn (EvaluationQuestionRecord $question): bool => $this->strings($question->expected_references ?? []) !== [])->count(),
+        ];
     }
 
     /** @return array<string, list<array<string, mixed>>> */

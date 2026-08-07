@@ -39,12 +39,23 @@ final class EvaluateDiagnoseCommand extends Command
         }
 
         $this->info('Evaluation Dataset Analysis');
+        $coverage = $diagnostics->evaluationCoverage($questionId);
+        $this->line('Defined questions: '.$coverage['defined']);
+        $this->line('Stored questions: '.$coverage['stored']);
+        $this->line('Fully covered: '.$coverage['fully_covered']);
+        $this->line('Partially covered: '.$coverage['partially_covered']);
+        $this->line('Unavailable: '.$coverage['unavailable']);
+        $this->line('Evaluable: '.$coverage['evaluable']);
+
         foreach ($diagnostics->evaluationDataset($questionId) as $question) {
             $this->newLine();
             $this->line('Question ID: '.$question['question_id']);
             $this->line('Question: '.$question['question']);
             $this->line('Category: '.($question['category'] ?? 'none'));
-            $this->line('Expected references: '.$this->csv($question['expected_references']));
+            $this->line('Coverage: '.$question['coverage_status']);
+            $this->line('Intended references: '.$this->csv($question['intended_references']));
+            $this->line('Available/evaluable references: '.$this->csv($question['expected_references']));
+            $this->line('Missing references: '.$this->csv($question['missing_references']));
             $this->line('Expected source types: '.$this->csv($question['expected_source_types']));
             $this->table(
                 ['Reference', 'Exists', 'Source Type', 'Source Name', 'Content Length'],
@@ -59,6 +70,13 @@ final class EvaluateDiagnoseCommand extends Command
         }
 
         foreach ($questions as $question) {
+            if (($question->expected_references ?? []) === []) {
+                $this->newLine(2);
+                $this->warn('Skipping retrieval diagnostics for unavailable question: '.$question->question);
+
+                continue;
+            }
+
             $this->displayQuestionDiagnostics($diagnostics, $question, $topK, $strategy);
         }
 

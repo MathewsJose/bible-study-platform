@@ -382,7 +382,16 @@ docker compose exec app php artisan evaluate:retrieval --top-k=5 --compare
 
 Retrieval evaluation measures whether semantic search returns the Catholic sources we expected before any future LLM answer generation is added. This matters because RAG quality depends first on retrieval quality: if the system fails to retrieve `CCC 457` or `John 1:14` for "Why did Jesus become man?", a later answer generator will be grounded in the wrong material.
 
-Evaluation data is stored in `evaluation_questions`, not hardcoded in services. Each question stores expected references and expected source types. Detailed runs are stored in `retrieval_evaluation_runs`, and aggregate summaries are stored in `retrieval_evaluation_summaries` with the embedding model, provider, dimensions, top K, minimum score, and filters used for reproducibility.
+Evaluation data is stored in `evaluation_questions`, not hardcoded in services. Each question stores intended references, currently evaluable references, missing references, expected source types, and coverage status. Detailed runs are stored in `retrieval_evaluation_runs`, and aggregate summaries are stored in `retrieval_evaluation_summaries` with the embedding model, provider, dimensions, top K, minimum score, and filters used for reproducibility.
+
+Coverage fields:
+
+- `intended_references`: the full ground truth from the evaluation design.
+- `expected_references`: references that currently exist in `knowledge_documents` and are used for metrics.
+- `missing_references`: intended references absent from the current corpus.
+- `coverage_status`: `fully_covered`, `partially_covered`, or `unavailable`.
+
+This keeps corpus gaps visible without changing retrieval metrics to expect documents that do not exist yet.
 
 Seed development evaluation questions:
 
@@ -422,7 +431,7 @@ php artisan evaluate:diagnose --top-k=10
 php artisan retrieval:health
 ```
 
-`evaluate:diagnose` does not change retrieval behavior. It prints each evaluation question, expected references, whether those references exist, source types, content lengths, query embedding dimensions, and the top ranked vector, lexical, and hybrid results with expected-hit markers.
+`evaluate:diagnose` does not change retrieval behavior. It prints dataset coverage counts, each evaluation question, intended references, currently evaluable references, missing references, source types, content lengths, query embedding dimensions, and the top ranked vector, lexical, and hybrid results with expected-hit markers. Unavailable questions are shown as coverage gaps and skipped for retrieval diagnostics.
 
 `retrieval:health` summarizes knowledge document counts, embedding coverage, content length quality, vector and lexical index status, current evaluation metrics, and evidence-based potential problems. Use it before tuning weights, changing chunking, or changing embedding models.
 

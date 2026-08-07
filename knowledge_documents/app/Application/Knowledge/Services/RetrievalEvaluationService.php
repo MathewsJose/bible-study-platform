@@ -52,6 +52,7 @@ final readonly class RetrievalEvaluationService
         $duplicateExpectedReferences = [];
         $questionsWithoutExpectedReferences = [];
         $invalidQuestionIds = [];
+        $unevaluableQuestionIds = [];
         $validSourceTypes = SourceType::values();
 
         foreach ($questions as $question) {
@@ -64,7 +65,7 @@ final readonly class RetrievalEvaluationService
                     'question_id' => $question->id,
                     'question' => $question->question,
                 ];
-                $invalidQuestionIds[$question->id] = true;
+                $unevaluableQuestionIds[$question->id] = true;
             }
 
             $duplicates = array_values(array_unique(array_diff_assoc($rawExpectedReferences, array_unique($rawExpectedReferences))));
@@ -104,7 +105,7 @@ final readonly class RetrievalEvaluationService
 
         return new EvaluationDatasetValidationResult(
             totalQuestions: $questions->count(),
-            validQuestions: $questions->count() - count($invalidQuestionIds),
+            validQuestions: $questions->count() - count($invalidQuestionIds) - count($unevaluableQuestionIds),
             invalidQuestions: count($invalidQuestionIds),
             missingReferences: $missingReferences,
             invalidSourceTypes: $invalidSourceTypes,

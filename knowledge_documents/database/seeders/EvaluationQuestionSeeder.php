@@ -13,27 +13,45 @@ final class EvaluationQuestionSeeder extends Seeder
 {
     public function run(): void
     {
+        $defined = 0;
+        $fullyCovered = 0;
+        $partiallyCovered = 0;
+        $unavailable = 0;
+
         foreach ($this->questions() as $question) {
+            $defined++;
             $existingReferences = $this->existingReferences($question['expected_references']);
             $missingReferences = array_values(array_diff($question['expected_references'], $existingReferences));
+            $coverageStatus = $this->coverageStatus($existingReferences, $missingReferences);
 
-            if ($existingReferences === []) {
-                $this->command?->warn('Skipping evaluation question because expected references are missing: '.$question['question'].' ['.implode(', ', $missingReferences).']');
-                continue;
-            }
+            match ($coverageStatus) {
+                'fully_covered' => $fullyCovered++,
+                'partially_covered' => $partiallyCovered++,
+                default => $unavailable++,
+            };
 
             EvaluationQuestionRecord::query()->updateOrCreate(
                 ['question' => $question['question']],
                 [
                     'expected_references' => $existingReferences,
+                    'intended_references' => $question['expected_references'],
+                    'missing_references' => $missingReferences,
                     'expected_source_types' => $question['expected_source_types'],
+                    'coverage_status' => $coverageStatus,
                     'category' => $question['category'],
-                    'notes' => $missingReferences === []
-                        ? ($question['notes'] ?? null)
-                        : trim(($question['notes'] ?? '').' Missing references in current corpus: '.implode(', ', $missingReferences)),
+                    'notes' => $this->notes($question['notes'] ?? null, $missingReferences),
                 ],
             );
+
+            if ($coverageStatus !== 'fully_covered') {
+                $this->command?->warn($this->coverageMessage($question['question'], $existingReferences, $missingReferences));
+            }
         }
+
+        $this->command?->info("{$defined} evaluation questions defined");
+        $this->command?->info("{$fullyCovered} questions fully covered");
+        $this->command?->info("{$partiallyCovered} questions partially covered");
+        $this->command?->info("{$unavailable} questions unavailable");
     }
 
     /**
@@ -47,6 +65,46 @@ final class EvaluationQuestionSeeder extends Seeder
             ->pluck('reference')
             ->map(static fn (mixed $reference): string => (string) $reference)
             ->all();
+    }
+
+    /**
+     * @param  list<string>  $existingReferences
+     * @param  list<string>  $missingReferences
+     */
+    private function coverageStatus(array $existingReferences, array $missingReferences): string
+    {
+        if ($missingReferences === []) {
+            return 'fully_covered';
+        }
+
+        if ($existingReferences !== []) {
+            return 'partially_covered';
+        }
+
+        return 'unavailable';
+    }
+
+    /**
+     * @param  list<string>  $missingReferences
+     */
+    private function notes(?string $notes, array $missingReferences): ?string
+    {
+        if ($missingReferences === []) {
+            return $notes;
+        }
+
+        return trim(($notes ?? '').' Missing references in current corpus: '.implode(', ', $missingReferences));
+    }
+
+    /**
+     * @param  list<string>  $existingReferences
+     * @param  list<string>  $missingReferences
+     */
+    private function coverageMessage(string $question, array $existingReferences, array $missingReferences): string
+    {
+        return 'Evaluation question partially/unavailable: '.$question
+            .' Available: '.($existingReferences === [] ? 'none' : implode(', ', $existingReferences))
+            .' Missing: '.implode(', ', $missingReferences);
     }
 
     /**

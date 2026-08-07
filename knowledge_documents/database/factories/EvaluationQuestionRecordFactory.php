@@ -21,7 +21,10 @@ final class EvaluationQuestionRecordFactory extends Factory
         return [
             'question' => 'Why did Jesus become man?',
             'expected_references' => ['CCC 457'],
+            'intended_references' => ['CCC 457'],
+            'missing_references' => [],
             'expected_source_types' => [SourceType::Catechism->value],
+            'coverage_status' => 'fully_covered',
             'notes' => null,
             'category' => 'christology',
         ];
