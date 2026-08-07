@@ -27,7 +27,8 @@ final class KnowledgeImportCommand extends Command
                             {--book= : Import only one Bible book}
                             {--chapter= : Import only one Bible chapter}
                             {--translation= : Override or filter the Bible translation identifier}
-                            {--source-edition= : The source edition label for imported documents}';
+                            {--source-edition= : The source edition label for imported documents}
+                            {--author= : Import only one Church Fathers author}';
 
     /** @var list<string> */
     protected $aliases = ['knowledge'];
@@ -57,6 +58,7 @@ final class KnowledgeImportCommand extends Command
             'chapter' => $this->option('chapter'),
             'translation' => $this->option('translation'),
             'source_edition' => $this->option('source-edition'),
+            'author' => $this->option('author'),
         ], static fn (mixed $value): bool => $value !== null && $value !== '');
 
         $imported = 0;
@@ -157,6 +159,8 @@ final class KnowledgeImportCommand extends Command
 
     private function resolveImporter(string $source, string $path): ?KnowledgeImporterInterface
     {
+        $source = $this->normalizeSourceIdentifier($source);
+
         if ($source !== 'all') {
             $importer = $this->sources->resolve($source);
 
@@ -174,6 +178,15 @@ final class KnowledgeImportCommand extends Command
         return isset($metadata['book'], $metadata['chapter'])
             || isset($metadata['book'])
             || isset($metadata['chapter'])
-            || isset($metadata['translation']);
+            || isset($metadata['translation'])
+            || isset($metadata['author']);
+    }
+
+    private function normalizeSourceIdentifier(string $source): string
+    {
+        return match ($source) {
+            'church-fathers', 'church-father' => 'church_fathers',
+            default => $source,
+        };
     }
 }

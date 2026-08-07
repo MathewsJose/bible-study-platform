@@ -24,6 +24,7 @@ final class KnowledgeStatusCommand extends Command
         $this->line('Registered sources: '.count($sources->all()));
         $this->displayBibleStatus();
         $this->displayCatechismStatus();
+        $this->displayChurchFathersStatus();
 
         foreach ($sources->all() as $importer) {
             $sourceTypes = $this->documentSourceTypes($importer->identifier());
@@ -207,5 +208,35 @@ final class KnowledgeStatusCommand extends Command
 
                 return count($items);
             });
+    }
+
+    private function displayChurchFathersStatus(): void
+    {
+        $documentCount = KnowledgeDocumentRecord::query()
+            ->where('source_type', SourceType::ChurchFather->value)
+            ->count();
+        $embeddedCount = KnowledgeDocumentRecord::query()
+            ->where('source_type', SourceType::ChurchFather->value)
+            ->where('embedding_status', EmbeddingStatus::Ready->value)
+            ->count();
+        $lastImport = ImportManifest::query()
+            ->where('source_type', 'church_fathers')
+            ->latest('finished_at')
+            ->first();
+        $validationFailures = ImportManifest::query()
+            ->where('source_type', 'church_fathers')
+            ->where('status', 'failed')
+            ->sum('records_failed');
+
+        $this->line('');
+        $this->line('Church Fathers Import Status');
+        $this->line('Authors imported: '.$this->distinctMetadataCount('author', SourceType::ChurchFather->value));
+        $this->line('Works imported: '.$this->distinctMetadataCount('work', SourceType::ChurchFather->value));
+        $this->line("Documents: {$documentCount}");
+        $this->line('Scripture references: '.$this->metadataArrayItemCount('scripture_references', SourceType::ChurchFather->value));
+        $this->line('Cross references: '.$this->metadataArrayItemCount('cross_references', SourceType::ChurchFather->value));
+        $this->line('Embedding coverage: '.($documentCount === 0 ? '0.00%' : number_format(($embeddedCount / $documentCount) * 100, 2).'%'));
+        $this->line('Last import: '.($lastImport?->finished_at?->toDateTimeString() ?? 'never'));
+        $this->line("Validation failures: {$validationFailures}");
     }
 }

@@ -755,6 +755,90 @@ php artisan knowledge:status
 
 To add another Catechism edition or translation, provide the same paragraph structure with edition, language, publication year, licensing, and source metadata. No retrieval, embedding, or pipeline changes are required.
 
+### Church Fathers Importer
+
+The Church Fathers importer implements `KnowledgeImporterInterface` and uses the same source registry, DTO normalization, manifest tracking, persistence service, and embedding dispatch as Bible and Catechism imports. It is source-file driven: users provide appropriately licensed JSON files, and the importer preserves only explicit references supplied by the text or source metadata.
+
+Initial supported authors:
+
+- St. Augustine
+- St. Thomas Aquinas
+- St. John Chrysostom
+- St. Athanasius
+- St. Gregory the Great
+
+Church Fathers JSON format:
+
+```json
+{
+  "author": "St. Augustine",
+  "work": "Tractates on John",
+  "volume": "NPNF1-07",
+  "century": "4th-5th",
+  "language": "en",
+  "original_language": "Latin",
+  "translation": "Public domain translation",
+  "source_edition": "Nicene and Post-Nicene Fathers",
+  "sections": [
+    {
+      "title": "Tractate 2",
+      "reference": "Augustine, Tractates on John, Tractate 2",
+      "section": "Tractate 2",
+      "chapter": "John 1",
+      "paragraph": "2",
+      "topics": ["logos", "incarnation"],
+      "content": "The Evangelist says John 1:1 and John 1:14. See also CCC 456.",
+      "church_father_references": ["Athanasius, On the Incarnation, Chapter 8"]
+    }
+  ]
+}
+```
+
+Each section becomes one `church_father` document. The importer requires stable source-supplied references such as:
+
+- `Augustine, Tractates on John, Tractate 2`
+- `Catena Aurea, John 1:14`
+- `Athanasius, On the Incarnation, Chapter 8`
+
+Metadata includes:
+
+- `author`
+- `author_key`
+- `work`
+- `volume`
+- `section`
+- `chapter`
+- `paragraph`
+- `language`
+- `original_language`
+- `translation`
+- `century`
+- `topics`
+- `source_edition`
+- `tradition`
+- `import_version`
+- `checksum`
+- `scripture_references`
+- `catechism_references`
+- `church_father_references`
+- `cross_references`
+
+CLI examples:
+
+```bash
+php artisan knowledge:import church-fathers
+php artisan knowledge:import church-fathers --author=augustine
+php artisan knowledge:import church_fathers --force
+php artisan knowledge:import church-fathers --skip-unchanged
+php artisan knowledge:status
+```
+
+The dashed `church-fathers` command source is accepted as an alias for the registered `church_fathers` importer identifier.
+
+To add more patristic material, create another compatible JSON file with author, work, section references, content, licensing, and source edition metadata. To support another author family explicitly, extend the importer-supported author list; the pipeline and retrieval layers do not need changes.
+
+Licensing: do not import copyrighted editions unless you have rights to use them. Prefer public-domain editions or user-supplied licensed sources. No patristic source text is bundled or hard-coded.
+
 To add a new source such as Vatican II documents:
 
 1. Create a class that implements `KnowledgeImporterInterface`, or extend `AbstractFileKnowledgeImporter`.
