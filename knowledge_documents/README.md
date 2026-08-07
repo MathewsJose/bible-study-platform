@@ -595,6 +595,143 @@ Graph events:
 
 To add a future graph source, implement `ReferenceResolverInterface`, read only explicit references from metadata or trusted source fields, resolve to existing `knowledge_documents`, and register the resolver in `AppServiceProvider` where `KnowledgeGraphBuilder` is bound.
 
+## Advanced Retrieval Engine
+
+Sprint 13 adds a deterministic retrieval engine as the single entry point for future AI and product retrieval workflows. Existing vector, lexical, and hybrid endpoints remain backwards compatible.
+
+Pipeline:
+
+```text
+Query
+  -> QueryAnalyzer
+  -> QueryExpansionService
+  -> MetadataFilterService
+  -> SemanticSearchService
+  -> LexicalSearchService
+  -> GraphExpansionService
+  -> RetrievalFusionService
+  -> RerankerService
+  -> ContextBuilder
+  -> RetrievalResult
+```
+
+The engine does not call LLMs or external APIs. Expansion and reranking use configured terms, explicit metadata, source authority, and knowledge graph relationships.
+
+API:
+
+```http
+POST /api/retrieval
+```
+
+```json
+{
+  "query": "Why did Jesus become man?",
+  "profile": "ai_answer",
+  "top_k": 10,
+  "context_limit": 8,
+  "include_explanations": true,
+  "filters": {
+    "source_types": ["catechism", "bible_verse"],
+    "tradition": "catholic",
+    "theological_topic": "incarnation"
+  }
+}
+```
+
+Response shape:
+
+```json
+{
+  "data": {
+    "query": {
+      "primary_intent": "natural_language_question",
+      "references": [],
+      "topics": ["incarnation"]
+    },
+    "profile": "ai_answer",
+    "expansion": {
+      "terms": ["Word became flesh"],
+      "references": ["John 1:14", "CCC 456"]
+    },
+    "context": [
+      {
+        "reference": "CCC 456",
+        "score": 0.92,
+        "score_breakdown": {
+          "vector": 0.88,
+          "lexical": 0.71,
+          "graph": 0.0,
+          "metadata": 1,
+          "authority": 1,
+          "reranked": 0.92
+        },
+        "stages": ["vector", "lexical", "rerank"],
+        "explanations": [
+          "Selected by semantic vector similarity.",
+          "Boosted because source type is authoritative for Catholic retrieval."
+        ]
+      }
+    ],
+    "diagnostics": {
+      "timings_ms": {
+        "query_analysis": 1,
+        "query_expansion": 0,
+        "vector_retrieval": 35,
+        "lexical_retrieval": 8,
+        "graph_expansion": 4,
+        "fusion": 0,
+        "reranking": 0,
+        "context_builder": 0,
+        "total": 48
+      }
+    }
+  }
+}
+```
+
+CLI diagnostics:
+
+```bash
+php artisan retrieval:pipeline "Why did Jesus become man?" --profile=ai_answer
+php artisan retrieval:pipeline "John 1:14" --profile=cross_references --context-limit=12
+```
+
+Profiles live in `config/retrieval.php` and can tune behavior without code changes:
+
+- `ai_answer`: balanced vector, lexical, graph, metadata, and authority scoring.
+- `study_mode`: larger context and deeper graph traversal.
+- `search`: less expansion and graph usage for direct search UX.
+- `cross_references`: graph-heavy traversal for related source navigation.
+- `research`: larger context and broader recall.
+
+Query expansion is explicit and explainable. Example configured expansion:
+
+```text
+Incarnation
+  -> Word became flesh
+  -> Jesus became man
+  -> John 1:14
+  -> CCC 456
+  -> CCC 457
+  -> Athanasius
+```
+
+Metadata filters supported by the engine:
+
+- source type
+- source name
+- author
+- book
+- chapter
+- tradition
+- language
+- translation
+- century
+- theological topic
+- relationship type
+
+Diagnostics include stage timings, vector/lexical/graph result counts, expansion statistics, selected profile, and context size. These diagnostics are intended for future retrieval evaluation work such as graph contribution, expansion contribution, reranking improvement, and profile comparison.
+
 ## Import Pipeline
 
 Sprint 8 introduces a source-agnostic import framework. Importers no longer own persistence in the primary pipeline; they only fetch, normalize, and validate source material.
