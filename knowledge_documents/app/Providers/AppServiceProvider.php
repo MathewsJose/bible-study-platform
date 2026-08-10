@@ -8,6 +8,13 @@ use App\Application\Knowledge\Contracts\EmbeddingRepositoryInterface;
 use App\Application\Knowledge\Contracts\EmbeddingProviderInterface;
 use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Application\Knowledge\Contracts\ResultFusionStrategyInterface;
+use App\Application\Knowledge\Agents\Contracts\AgentInterface;
+use App\Application\Knowledge\Agents\Contracts\AgentPlannerInterface;
+use App\Application\Knowledge\Agents\Services\AgentToolRegistry;
+use App\Application\Knowledge\Agents\Services\DeterministicAgentPlanner;
+use App\Application\Knowledge\Agents\Services\KnowledgeAgent;
+use App\Application\Knowledge\Agents\Services\LLMAgentPlanner;
+use App\Application\Knowledge\Agents\Contracts\ToolInterface;
 use App\Application\Knowledge\Answering\Contracts\LLMProviderInterface;
 use App\Application\Knowledge\Graph\Contracts\KnowledgeGraphRepositoryInterface;
 use App\Application\Knowledge\Graph\Resolvers\CatechismReferenceResolver;
@@ -47,6 +54,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EmbeddingRepositoryInterface::class, EloquentEmbeddingRepository::class);
         $this->app->bind(ResultFusionStrategyInterface::class, WeightedScoreFusionStrategy::class);
         $this->app->bind(KnowledgeGraphRepositoryInterface::class, EloquentKnowledgeGraphRepository::class);
+        $this->app->bind(AgentInterface::class, KnowledgeAgent::class);
+        $this->app->bind(AgentPlannerInterface::class, fn (): AgentPlannerInterface => match (config('agents.planner', 'deterministic')) {
+            'llm' => $this->app->make(LLMAgentPlanner::class),
+            default => $this->app->make(DeterministicAgentPlanner::class),
+        });
         $this->app->bind(EmbeddingProviderInterface::class, fn (): EmbeddingProviderInterface => $this->app->make($this->embeddingProviderClass()));
         $this->app->bind(LLMProviderInterface::class, fn (): LLMProviderInterface => $this->app->make($this->llmProviderClass()));
         $this->app->bind(KnowledgeGraphBuilder::class, fn (): KnowledgeGraphBuilder => new KnowledgeGraphBuilder(
@@ -62,6 +74,19 @@ class AppServiceProvider extends ServiceProvider
 
             foreach ((array) config('knowledge.import.sources', []) as $importerClass) {
                 $registry->register($this->app->make($importerClass));
+            }
+
+            return $registry;
+        });
+        $this->app->singleton(AgentToolRegistry::class, function (): AgentToolRegistry {
+            $registry = new AgentToolRegistry();
+
+            foreach ((array) config('agents.tools', []) as $toolClass) {
+                $tool = $this->app->make($toolClass);
+
+                if ($tool instanceof ToolInterface) {
+                    $registry->register($tool);
+                }
             }
 
             return $registry;

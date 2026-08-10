@@ -859,6 +859,155 @@ Conversation readiness interfaces are present for future chat work:
 
 Answer evaluation scaffolding is provided by `AnswerEvaluationService` for groundedness, citation coverage, faithfulness, response completeness, and latency. Future benchmark datasets can build on this without changing provider implementations.
 
+## Agentic AI Framework
+
+Sprint 15 adds a controlled agent orchestration layer on top of retrieval, graph, and answer services. The agent does not call an LLM provider directly and it cannot execute arbitrary code. It selects explicitly registered read-only tools, validates every tool input, records a structured trace, and terminates on completion, failure, timeout, duplicate calls, or maximum steps.
+
+Lifecycle:
+
+```text
+User request
+  -> AgentInterface
+  -> AgentPlannerInterface
+  -> AgentToolRegistry
+  -> ToolInterface validation
+  -> Tool execution
+  -> Agent observation
+  -> AgentResponse with trace and diagnostics
+```
+
+Core components:
+
+- `AgentInterface`: contract for `execute`, `plan`, `observe`, and `finalize`.
+- `KnowledgeAgent`: execution loop, guardrails, events, traces, and final response assembly.
+- `AgentState`: controlled state containing request, step number, actions, tool results, observations, errors, timestamps, and status.
+- `ToolInterface`: MCP-ready internal tool boundary with input schema, output schema, permissions, timeout, read-only flag, and structured execution result.
+- `AgentToolRegistry`: registers tools, resolves by name, lists tools, and prevents duplicate names.
+- `DeterministicAgentPlanner`: first planner implementation using provider-independent rules.
+- `LLMAgentPlanner`: placeholder adapter boundary for a future structured LLM planner.
+
+Initial read-only tools:
+
+- `bible_search`: search Bible verses and chapters.
+- `scripture_reference`: resolve explicit references such as `John 1:14`.
+- `catechism_search`: search CCC paragraphs.
+- `church_father_search`: search patristic writings.
+- `knowledge_graph`: traverse explicit document relationships.
+- `advanced_retrieval`: run the advanced retrieval engine.
+- `answer_generation`: call the existing AI Answer Service.
+
+Agent profiles live in `config/agents.php`:
+
+- `bible_study`
+- `scripture_research`
+- `catholic_research`
+- `theological_research`
+
+Each profile defines allowed tools, maximum steps, maximum tool calls, timeout, retrieval profile, answer profile, and system instructions. Environment controls:
+
+```env
+AGENT_DEFAULT_PROFILE=catholic_research
+AGENT_PLANNER=deterministic
+AGENT_MAX_STEPS=8
+AGENT_MAX_TOOL_CALLS=8
+AGENT_TIMEOUT=45
+AGENT_TOOL_TIMEOUT=15
+```
+
+API:
+
+```http
+POST /api/agents/run
+```
+
+```json
+{
+  "input": "Explain why Jesus became man according to Scripture, Catechism, and the Fathers.",
+  "profile": "catholic_research",
+  "filters": {
+    "source_types": ["bible_verse", "catechism", "church_father"],
+    "tradition": "catholic"
+  },
+  "max_steps": 8
+}
+```
+
+Response shape:
+
+```json
+{
+  "data": {
+    "agent_id": "uuid",
+    "request_id": "uuid",
+    "status": "completed",
+    "answer": "Jesus became man for our salvation [1].",
+    "tool_results": [
+      {
+        "tool": "advanced_retrieval",
+        "successful": true,
+        "status": "success",
+        "latency_ms": 42
+      }
+    ],
+    "trace": [
+      {
+        "event": "agent_started",
+        "status": "running",
+        "step": 0
+      }
+    ],
+    "diagnostics": {
+      "profile": "catholic_research",
+      "steps": 2,
+      "tool_calls": 2,
+      "tools_used": ["advanced_retrieval", "answer_generation"]
+    }
+  }
+}
+```
+
+CLI:
+
+```bash
+php artisan agent:tools
+php artisan agent:health
+php artisan agent:run "Why did Jesus become man?" --profile=catholic_research
+php artisan agent:evaluate
+php artisan agent:trace --id=AGENT_ID
+```
+
+Events emitted for observability:
+
+- `AgentStarted`
+- `AgentStepStarted`
+- `ToolExecutionStarted`
+- `ToolExecutionCompleted`
+- `ToolExecutionFailed`
+- `AgentCompleted`
+- `AgentFailed`
+
+Guardrails implemented:
+
+- maximum steps
+- maximum tool calls
+- profile and request tool allowlists
+- schema validation
+- unknown parameter rejection
+- read-only tool enforcement
+- duplicate tool-call detection
+- timeout checks
+- provider failure handling through existing answer service boundaries
+
+Agent evaluation scenarios are configured in `config/agents.php` and exercised by `php artisan agent:evaluate`. The command reports task success rate, tool selection accuracy, unnecessary tool calls, average steps, average planner latency, and failure rate. Groundedness and citation coverage remain measured by the answer service and future answer-evaluation datasets.
+
+Known limitations:
+
+- Execution traces are returned in API/CLI responses but are not persisted yet.
+- `LLMAgentPlanner` is an adapter boundary that currently falls back to deterministic planning.
+- All initial tools are read-only; write tools require a future explicit approval and authorization model.
+
+To add a new tool, implement `ToolInterface`, validate a strict input schema, keep the operation read-only unless a future approval workflow exists, and register the class in `config/agents.php`.
+
 ## Import Pipeline
 
 Sprint 8 introduces a source-agnostic import framework. Importers no longer own persistence in the primary pipeline; they only fetch, normalize, and validate source material.
