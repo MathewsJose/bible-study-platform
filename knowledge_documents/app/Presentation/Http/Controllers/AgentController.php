@@ -25,6 +25,7 @@ final class AgentController extends Controller
             maxSteps: isset($validated['max_steps']) ? (int) $validated['max_steps'] : null,
             timeoutSeconds: isset($validated['timeout_seconds']) ? (int) $validated['timeout_seconds'] : null,
             metadata: (array) ($validated['metadata'] ?? []),
+            requestId: (string) ($request->header('X-Request-ID') ?: ''),
         ));
 
         return response()->json(['data' => $response->toArray()]);

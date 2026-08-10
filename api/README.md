@@ -299,6 +299,142 @@ GET /api/verse/{book}/{chapter}/{verse}
 
 This route is kept for existing clients. New client work should prefer the query-based endpoints above.
 
+## Knowledge Integration Layer
+
+Sprint 16 adds a clean HTTP boundary from the core Bible Study API to the reusable `knowledge_documents` service. The core API depends on stable application contracts and DTOs, not retrieval, pgvector, graph, LLM, or agent implementation details.
+
+Actual architecture:
+
+```text
+Nuxt frontend
+  -> Core API routes (/v1/knowledge/*)
+  -> KnowledgeServiceClientInterface
+  -> HttpKnowledgeServiceClient
+  -> knowledge_documents routes (/api/v1/knowledge/*)
+```
+
+The core API owns users, Sanctum authentication, user preferences, study progress, bookmarks, and Bible-study workflows. The knowledge service owns knowledge documents, embeddings, retrieval, graph traversal, AI answers, and agent orchestration.
+
+Configuration:
+
+```env
+KNOWLEDGE_SERVICE_URL=http://host.docker.internal:8080
+KNOWLEDGE_SERVICE_TOKEN=
+KNOWLEDGE_SERVICE_CONNECT_TIMEOUT=2
+KNOWLEDGE_SERVICE_TIMEOUT=10
+KNOWLEDGE_SERVICE_RETRY_ATTEMPTS=2
+KNOWLEDGE_SERVICE_RETRY_SLEEP_MS=150
+KNOWLEDGE_AI_RATE_LIMIT_PER_MINUTE=10
+```
+
+The two Docker Compose projects currently run on separate Docker networks. From the `api` container, use `http://host.docker.internal:8080` on Docker Desktop. From host-based PHP, use `http://localhost:8080`. A future shared Compose/network file could replace this with container DNS.
+
+Core API endpoints for frontend consumers:
+
+```http
+GET  /v1/knowledge/search
+GET  /v1/knowledge/reference/{reference}
+GET  /v1/knowledge/related/{document}
+POST /v1/knowledge/retrieve
+POST /v1/knowledge/answer
+POST /v1/knowledge/agents/run
+GET  /v1/knowledge/agents/executions/{id}
+POST /v1/knowledge/agents/executions/{id}/replay
+GET  /v1/knowledge/agent-replays/{id}
+```
+
+Authorization decision:
+
+- `search`, `reference`, `related`, and `retrieve` are read-only and follow the existing public Bible/study endpoint model with `throttle:api`.
+- `answer`, `agents/run`, trace inspection, and agent replay require `auth:sanctum` and use the stricter `throttle:knowledge-ai` limiter because they can hit expensive AI/provider workflows.
+
+Error envelope remains consistent with the rest of the API:
+
+```json
+{
+  "success": false,
+  "message": "Knowledge service unavailable.",
+  "errors": {
+    "service": ["Unable to connect to the knowledge service."]
+  }
+}
+```
+
+Correlation IDs:
+
+- The frontend may send `X-Request-ID`.
+- The core API generates one if missing.
+- `HttpKnowledgeServiceClient` forwards it to the knowledge service as `X-Request-ID`.
+- The response includes `data.request_id`.
+
+Frontend request examples:
+
+```bash
+curl "http://localhost/v1/knowledge/search?query=incarnation&source_type=catechism&limit=5"
+curl "http://localhost/v1/knowledge/reference/CCC%20456"
+curl "http://localhost/v1/knowledge/related/John%201%3A14?depth=1"
+```
+
+Authenticated AI answer example:
+
+```bash
+curl -X POST "http://localhost/v1/knowledge/answer" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Why did Jesus become man?",
+    "filters": {
+      "source_types": ["catechism", "bible_verse"],
+      "tradition": "catholic"
+    }
+  }'
+```
+
+Authenticated agent example:
+
+```bash
+curl -X POST "http://localhost/v1/knowledge/agents/run" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Explain why Jesus became man according to Scripture, Catechism, and the Fathers.",
+    "profile": "catholic_research",
+    "max_steps": 8
+  }'
+```
+
+Authenticated trace inspection example:
+
+```bash
+curl "http://localhost/v1/knowledge/agents/executions/TRACE_ID" \
+  -H "Authorization: Bearer TOKEN"
+```
+
+Trace responses include persisted execution metadata, timing, tools used, provider/model metrics when available, and redacted step metadata. The frontend should display trace summaries for diagnostics without assuming internal agent state shape.
+
+Replay example:
+
+```bash
+curl -X POST "http://localhost/v1/knowledge/agents/executions/TRACE_ID/replay" \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dry_run": true,
+    "strict": false
+  }'
+```
+
+Replay status:
+
+```bash
+curl "http://localhost/v1/knowledge/agent-replays/REPLAY_ID" \
+  -H "Authorization: Bearer TOKEN"
+```
+
+The core API only forwards `strict` and `dry_run`; provider/model overrides are not exposed over HTTP. Replay compares persisted traces against the current knowledge service configuration and corpus. It does not guarantee identical LLM text.
+
+The client does not accept arbitrary URLs from users, so this integration does not introduce SSRF exposure. Secrets are read from config only and must not be logged or committed.
+
 ## Validation Example
 
 Request:

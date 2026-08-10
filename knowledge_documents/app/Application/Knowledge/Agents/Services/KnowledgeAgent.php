@@ -20,6 +20,9 @@ use App\Application\Knowledge\Agents\Events\AgentStepStarted;
 use App\Application\Knowledge\Agents\Events\ToolExecutionCompleted;
 use App\Application\Knowledge\Agents\Events\ToolExecutionFailed;
 use App\Application\Knowledge\Agents\Events\ToolExecutionStarted;
+use App\Application\Knowledge\Agents\Observability\Contracts\AgentTraceRepositoryInterface;
+use App\Application\Knowledge\Agents\Observability\Services\FailureClassifier;
+use App\Infrastructure\Knowledge\Agents\Persistence\AgentExecutionStepRecord;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -30,11 +33,14 @@ final readonly class KnowledgeAgent implements AgentInterface
         private AgentProfileRepository $profiles,
         private AgentToolRegistry $tools,
         private AgentGuardrailPolicy $guardrails,
+        private AgentTraceRepositoryInterface $traces,
+        private FailureClassifier $failures,
     ) {}
 
     public function execute(AgentRequest $request): AgentResponse
     {
         $state = AgentState::start((string) Str::uuid(), $request, $this->profiles->resolve($request->profile));
+        $execution = $this->traces->startExecution($state);
         AgentStarted::dispatch($state);
 
         while ($state->status === 'running') {
@@ -51,16 +57,20 @@ final readonly class KnowledgeAgent implements AgentInterface
 
             foreach ($plan->actions as $action) {
                 $tool = $this->tools->resolve($action->tool);
+                $step = $execution === null ? null : $this->traces->recordStepStarted($execution, $state, $action);
                 $violations = $this->guardrails->violations($state, $action, $tool);
 
                 if ($violations !== []) {
-                    $state = $state->withToolResult(new ToolResult(
+                    $result = new ToolResult(
                         tool: $action->tool,
                         successful: false,
                         status: 'guardrail_violation',
                         warnings: $violations,
                         error: implode(' ', $violations),
-                    ))->complete('failed');
+                    );
+                    $this->recordStepCompleted($step, $result);
+                    $state = $state->withToolResult($result)->complete('failed');
+                    $this->traces->failExecution($state, $this->failures->classifyToolResult($result));
                     AgentFailed::dispatch($state);
                     break 2;
                 }
@@ -100,15 +110,18 @@ final readonly class KnowledgeAgent implements AgentInterface
                 $result->successful
                     ? ToolExecutionCompleted::dispatch($state, $result)
                     : ToolExecutionFailed::dispatch($state, $result);
+                $this->recordStepCompleted($step, $result);
 
                 if (! $result->successful) {
                     $state = $state->complete('failed');
+                    $this->traces->failExecution($state, $this->failures->classifyToolResult($result));
                     AgentFailed::dispatch($state);
                     break 2;
                 }
 
                 if ($state->currentStep >= ($request->maxSteps ?? $state->profile->maxSteps)) {
                     $state = $state->complete('max_steps_reached');
+                    $this->traces->failExecution($state, FailureClassifier::STEP_LIMIT);
                     break 2;
                 }
             }
@@ -117,6 +130,7 @@ final readonly class KnowledgeAgent implements AgentInterface
         }
 
         if ($state->status === 'completed') {
+            $this->traces->completeExecution($state);
             AgentCompleted::dispatch($state);
         }
 
@@ -153,6 +167,7 @@ final readonly class KnowledgeAgent implements AgentInterface
                 'tools_used' => array_values(array_unique($toolsUsed)),
                 'average_tool_latency_ms' => count($state->toolResults) === 0 ? 0 : (int) round(array_sum(array_map(static fn (ToolResult $result): int => $result->latencyMs, $state->toolResults)) / count($state->toolResults)),
             ],
+            traceId: (bool) config('agent_observability.tracing.enabled', true) ? $state->agentId : null,
         );
     }
 
@@ -180,5 +195,12 @@ final readonly class KnowledgeAgent implements AgentInterface
     private function elapsedMs(float $started): int
     {
         return (int) round((microtime(true) - $started) * 1000);
+    }
+
+    private function recordStepCompleted(?AgentExecutionStepRecord $step, ToolResult $result): void
+    {
+        if ($step instanceof AgentExecutionStepRecord) {
+            $this->traces->recordStepCompleted($step, $result);
+        }
     }
 }

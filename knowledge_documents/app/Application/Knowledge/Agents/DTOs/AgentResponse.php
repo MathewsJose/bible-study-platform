@@ -21,6 +21,7 @@ final readonly class AgentResponse
         public array $trace,
         public array $errors,
         public array $diagnostics,
+        public ?string $traceId = null,
     ) {}
 
     /** @return array<string, mixed> */
@@ -30,6 +31,7 @@ final readonly class AgentResponse
             'agent_id' => $this->agentId,
             'request_id' => $this->requestId,
             'status' => $this->status,
+            'trace_id' => $this->traceId,
             'answer' => $this->answer,
             'tool_results' => array_map(static fn (ToolResult $result): array => $result->toArray(), $this->toolResults),
             'trace' => array_map(static fn (AgentTraceEntry $entry): array => $entry->toArray(), $this->trace),

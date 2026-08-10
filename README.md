@@ -40,6 +40,37 @@ The backend is intentionally structured as a DDD-friendly, layered API service:
 - Tech: PostgreSQL 17 with `pgvector` for similarity search.
 - Integration: OpenAI for generating document embeddings.
 
+### Knowledge Integration Boundary
+
+The existing Bible Study Platform consumes knowledge capabilities through the core `api` service, not by coupling the Nuxt frontend to pgvector, embeddings, graph traversal, LLM providers, or agent internals.
+
+```text
+frontend/
+  -> api/ /v1/knowledge/*
+  -> KnowledgeServiceClientInterface
+  -> HTTP
+  -> knowledge_documents/ /api/v1/knowledge/*
+```
+
+Public read-only integration endpoints:
+
+- `GET /v1/knowledge/search`
+- `GET /v1/knowledge/reference/{reference}`
+- `GET /v1/knowledge/related/{document}`
+- `POST /v1/knowledge/retrieve`
+
+Authenticated/expensive endpoints:
+
+- `POST /v1/knowledge/answer`
+- `POST /v1/knowledge/agents/run`
+- `GET /v1/knowledge/agents/executions/{id}`
+
+The core API forwards `X-Request-ID` to the knowledge service for correlation. The two backend services currently run in separate Docker Compose networks, so local Docker API calls should use `KNOWLEDGE_SERVICE_URL=http://host.docker.internal:8080` unless a shared Docker network is introduced.
+
+Agent executions are persisted in the knowledge service with redacted metadata, step timings, tool usage, provider/model metrics, and evaluation run summaries. Trace retention is controlled by `AGENT_TRACE_RETENTION_DAYS` and `php artisan agent:traces:prune`.
+
+Agent replay stores `agent_replays` records and compares execution fingerprints, corpus state, tool sequence, retrieval/citation references, answer structure, and latency. Replay is reproducibility tooling; it does not guarantee identical LLM text when the provider/model is nondeterministic.
+
 This architecture makes the backend easier to reason about, test, and extend:
 
 - domain rules live in the Domain layer, not in controllers

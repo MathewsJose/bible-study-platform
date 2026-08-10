@@ -1008,6 +1008,199 @@ Known limitations:
 
 To add a new tool, implement `ToolInterface`, validate a strict input schema, keep the operation read-only unless a future approval workflow exists, and register the class in `config/agents.php`.
 
+## Bible Platform Integration API
+
+Sprint 16 adds stable versioned endpoints for the core Bible Study Platform and future consumers. These endpoints sit on top of the existing services and intentionally hide embeddings, pgvector, retrieval internals, graph records, LLM providers, and agent state.
+
+The actual monorepo architecture is three separate applications:
+
+```text
+frontend/ Nuxt app
+  -> api/ Laravel core API
+  -> knowledge_documents/ Laravel knowledge service
+```
+
+The core API owns users, Sanctum authentication, Bible reader workflows, preferences, progress, bookmarks, and application presentation. This service owns knowledge documents, imports, embeddings, retrieval, graph traversal, AI answers, and agent orchestration. The integration mechanism is HTTP; the services do not share application code or persistence models.
+
+Knowledge service endpoints:
+
+```http
+GET  /api/v1/knowledge/search
+GET  /api/v1/knowledge/reference/{reference}
+GET  /api/v1/knowledge/related/{document}
+POST /api/v1/knowledge/retrieve
+POST /api/v1/knowledge/answer
+POST /api/v1/knowledge/agents/run
+```
+
+Search example:
+
+```bash
+curl "http://localhost:8080/api/v1/knowledge/search?query=Word%20became%20flesh&source_type=bible_verse&book=John&chapter=1&limit=5"
+```
+
+Reference lookup:
+
+```bash
+curl "http://localhost:8080/api/v1/knowledge/reference/John%201%3A14"
+curl "http://localhost:8080/api/v1/knowledge/reference/CCC%20456"
+```
+
+Related knowledge:
+
+```bash
+curl "http://localhost:8080/api/v1/knowledge/related/John%201%3A14?depth=1&limit=25"
+```
+
+Advanced retrieval:
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/knowledge/retrieve" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Why did Jesus become man?",
+    "profile": "research",
+    "filters": {
+      "source_types": ["bible_verse", "catechism", "church_father"],
+      "tradition": "catholic"
+    },
+    "top_k": 10
+  }'
+```
+
+AI answer:
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/knowledge/answer" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Why did Jesus become man?",
+    "profile": "ai_answer",
+    "filters": {
+      "source_types": ["catechism", "bible_verse"],
+      "tradition": "catholic"
+    }
+  }'
+```
+
+Agent run:
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/knowledge/agents/run" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Explain why Jesus became man according to Scripture, Catechism, and the Fathers.",
+    "profile": "catholic_research",
+    "max_steps": 8
+  }'
+```
+
+Responses are stable DTO arrays. Search and reference responses return document summaries with `id`, `reference`, `title`, `source_type`, `source_name`, `tradition`, `content`, `metadata`, and optional `score`. Related responses expose relationship summaries, not raw graph query models. Agent responses include a trimmed trace suitable for external clients.
+
+Error contract:
+
+```json
+{
+  "message": "Reference not found.",
+  "errors": {
+    "reference": ["No knowledge document matched the supplied reference."]
+  }
+}
+```
+
+Request correlation is accepted through `X-Request-ID`. The core API forwards this header when it calls the knowledge service so logs and traces can be tied together without storing unrestricted conversation history.
+
+## AI Observability And Persistent Agent Traces
+
+Sprint 17 persists lightweight agent execution traces for debugging, auditability, and evaluation. The agent framework remains the same controlled read-only tool orchestration layer; persistence is added through `AgentTraceRepositoryInterface` so the application layer does not depend on Eloquent records.
+
+```text
+Core API X-Request-ID
+  -> Knowledge Service AgentRequest
+  -> KnowledgeAgent
+  -> AgentTraceRepositoryInterface
+  -> agent_executions
+  -> agent_execution_steps
+```
+
+Tables:
+
+- `agent_executions`: request id, profile, status, failure category, timing, step/tool counts, provider/model, nullable token metrics, retrieval metrics, answer metrics, redacted metadata, and errors.
+- `agent_execution_steps`: ordered tool steps with tool name, status, failure category, timing, validation warnings, compact input metadata, compact output metadata, and redacted errors.
+- `agent_evaluation_runs` and `agent_evaluation_results`: persisted deterministic agent evaluation summaries and per-scenario results.
+
+Configuration:
+
+```env
+AGENT_TRACE_ENABLED=true
+AGENT_TRACE_STORE_INPUTS=false
+AGENT_TRACE_STORE_OUTPUTS=false
+AGENT_TRACE_RETENTION_DAYS=30
+AGENT_TRACE_PRUNE_LIMIT=500
+AGENT_TRACE_TRACK_TOKENS=true
+AGENT_TRACE_API_TOKEN=
+AGENT_EVALUATION_DATASET_VERSION=agent-v1
+AGENT_EVAL_SUCCESS_RATE_DROP=0.05
+AGENT_EVAL_LATENCY_INCREASE_RATIO=0.25
+```
+
+Privacy defaults: raw inputs and outputs are not stored unless explicitly enabled; sensitive keys and bearer/API-key patterns are redacted; embeddings and vectors are never persisted in traces.
+
+Trace CLI:
+
+```bash
+php artisan agent:health
+php artisan agent:health --days=7
+php artisan agent:trace --id=EXECUTION_ID
+php artisan agent:traces:prune --days=30 --limit=500
+php artisan agent:evaluate --save --name=agent-baseline
+```
+
+Trace API:
+
+```http
+GET /api/v1/knowledge/agents/executions/{id}
+```
+
+If `AGENT_TRACE_API_TOKEN` is configured, direct calls to the knowledge service must send `Authorization: Bearer TOKEN`. The core API exposes the same trace through its authenticated integration endpoint: `GET /v1/knowledge/agents/executions/{id}`.
+
+## Deterministic Agent Replay
+
+Sprint 18 adds replay records and reproducibility comparison for persisted agent traces. Replay does not guarantee identical LLM text; it compares the factors that explain why a new run matches or diverges.
+
+Replay persistence:
+
+- `agent_replays` stores original execution id, optional replay execution id, mode, status, strict/dry-run flags, execution fingerprints, corpus snapshot, configuration snapshot, comparison details, divergence summary, and errors.
+- Original executions now include replay metadata with an execution fingerprint, corpus fingerprint, replay readiness, and `exact_model_replay_guaranteed=false`.
+
+Fingerprinting:
+
+- Document fingerprint: normalized content hash plus stable source, reference, provenance, and embedding metadata.
+- Corpus fingerprint: deterministic hash of document fingerprints, embedding model set, and retrieval profiles.
+- Execution fingerprint: agent profile, planner, tool registry, retrieval config, AI provider/model/prompt/generation settings, corpus hash, and app version. Secrets and API keys are excluded.
+
+Replay commands:
+
+```bash
+php artisan agent:replay --id=EXECUTION_ID
+php artisan agent:replay --id=EXECUTION_ID --strict
+php artisan agent:replay --id=EXECUTION_ID --dry-run --compare
+php artisan agent:replay --id=EXECUTION_ID --provider=null --model=null-answer-model
+```
+
+Strict replay fails when the stored execution/corpus fingerprint does not match the current system. Live replay executes tools again only when the original trace retained inputs. If `AGENT_TRACE_STORE_INPUTS=false` on the original execution, replay will not reconstruct hidden input.
+
+Protected replay API:
+
+```http
+POST /api/v1/knowledge/agents/executions/{id}/replay
+GET  /api/v1/knowledge/agent-replays/{id}
+```
+
+HTTP replay accepts only `strict` and `dry_run`. Provider/model overrides are CLI-only. Set `AGENT_REPLAY_HTTP_LIVE=false` to require HTTP callers to use dry-run replay.
+
+Comparison output covers environment fingerprints, tool sequence, retrieval/citation references, answer structure, latency, and possible causes such as corpus changes, retrieval changes, tool changes, provider/model drift, or nondeterministic model output.
+
 ## Import Pipeline
 
 Sprint 8 introduces a source-agnostic import framework. Importers no longer own persistence in the primary pipeline; they only fetch, normalize, and validate source material.

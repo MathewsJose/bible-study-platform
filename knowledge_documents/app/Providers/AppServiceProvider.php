@@ -10,11 +10,12 @@ use App\Application\Knowledge\Contracts\KnowledgeDocumentRepositoryInterface;
 use App\Application\Knowledge\Contracts\ResultFusionStrategyInterface;
 use App\Application\Knowledge\Agents\Contracts\AgentInterface;
 use App\Application\Knowledge\Agents\Contracts\AgentPlannerInterface;
+use App\Application\Knowledge\Agents\Contracts\ToolInterface;
+use App\Application\Knowledge\Agents\Observability\Contracts\AgentTraceRepositoryInterface;
 use App\Application\Knowledge\Agents\Services\AgentToolRegistry;
 use App\Application\Knowledge\Agents\Services\DeterministicAgentPlanner;
 use App\Application\Knowledge\Agents\Services\KnowledgeAgent;
 use App\Application\Knowledge\Agents\Services\LLMAgentPlanner;
-use App\Application\Knowledge\Agents\Contracts\ToolInterface;
 use App\Application\Knowledge\Answering\Contracts\LLMProviderInterface;
 use App\Application\Knowledge\Graph\Contracts\KnowledgeGraphRepositoryInterface;
 use App\Application\Knowledge\Graph\Resolvers\CatechismReferenceResolver;
@@ -32,6 +33,7 @@ use App\Infrastructure\Knowledge\AI\GeminiProvider;
 use App\Infrastructure\Knowledge\AI\NullProvider;
 use App\Infrastructure\Knowledge\AI\OllamaProvider;
 use App\Infrastructure\Knowledge\AI\OpenAIProvider as OpenAIAnswerProvider;
+use App\Infrastructure\Knowledge\Agents\Persistence\EloquentAgentTraceRepository;
 use App\Infrastructure\Knowledge\Importers\BibleImporter;
 use App\Infrastructure\Knowledge\Importers\CatechismImporter;
 use App\Infrastructure\Knowledge\Importers\ChurchFatherImporter;
@@ -54,6 +56,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EmbeddingRepositoryInterface::class, EloquentEmbeddingRepository::class);
         $this->app->bind(ResultFusionStrategyInterface::class, WeightedScoreFusionStrategy::class);
         $this->app->bind(KnowledgeGraphRepositoryInterface::class, EloquentKnowledgeGraphRepository::class);
+        $this->app->bind(AgentTraceRepositoryInterface::class, EloquentAgentTraceRepository::class);
         $this->app->bind(AgentInterface::class, KnowledgeAgent::class);
         $this->app->bind(AgentPlannerInterface::class, fn (): AgentPlannerInterface => match (config('agents.planner', 'deterministic')) {
             'llm' => $this->app->make(LLMAgentPlanner::class),

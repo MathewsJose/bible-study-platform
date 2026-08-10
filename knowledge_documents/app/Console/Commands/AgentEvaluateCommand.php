@@ -6,22 +6,29 @@ namespace App\Console\Commands;
 
 use App\Application\Knowledge\Agents\DTOs\AgentRequest;
 use App\Application\Knowledge\Agents\DTOs\AgentState;
+use App\Application\Knowledge\Agents\Observability\Services\AgentEvaluationRecorder;
 use App\Application\Knowledge\Agents\Services\AgentProfileRepository;
 use App\Application\Knowledge\Agents\Services\DeterministicAgentPlanner;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
 final class AgentEvaluateCommand extends Command
 {
-    protected $signature = 'agent:evaluate {--profile=catholic_research : Agent profile}';
+    protected $signature = 'agent:evaluate
+                            {--profile=catholic_research : Agent profile}
+                            {--save : Persist this evaluation run}
+                            {--name=agent-deterministic : Evaluation run name}';
 
     protected $description = 'Evaluate deterministic agent tool selection scenarios.';
 
-    public function handle(DeterministicAgentPlanner $planner, AgentProfileRepository $profiles): int
+    public function handle(DeterministicAgentPlanner $planner, AgentProfileRepository $profiles, AgentEvaluationRecorder $recorder): int
     {
+        $startedAt = CarbonImmutable::now();
         $profile = $profiles->resolve((string) $this->option('profile'));
         $scenarios = (array) config('agents.evaluation.scenarios', []);
         $rows = [];
+        $results = [];
         $hits = 0;
         $totalLatency = 0;
         $totalSteps = 0;
@@ -54,9 +61,29 @@ final class AgentEvaluateCommand extends Command
                 implode(', ', $actual),
                 $latency.'ms',
             ];
+            $results[] = [
+                'scenario_name' => (string) ($scenario['name'] ?? 'Scenario'),
+                'status' => $passed ? 'pass' : 'fail',
+                'step_count' => count($actual),
+                'latency_ms' => $latency,
+                'expected_tools' => $expected,
+                'actual_tools' => $actual,
+                'missing_tools' => $missing,
+                'extra_tools' => $extra,
+            ];
         }
 
         $count = count($rows);
+        $summary = [
+            'started_at' => $startedAt,
+            'total_tasks' => $count,
+            'successful_tasks' => $hits,
+            'failed_tasks' => $count - $hits,
+            'success_rate' => $count === 0 ? 0.0 : $hits / $count,
+            'average_steps' => $count === 0 ? 0.0 : $totalSteps / $count,
+            'average_latency_ms' => $count === 0 ? 0.0 : $totalLatency / $count,
+            'unnecessary_tool_calls' => $unnecessary,
+        ];
         $this->line('Agent Evaluation');
         $this->table(['Scenario', 'Status', 'Expected Tools', 'Actual Tools', 'Planner Latency'], $rows);
         $this->line('Task success rate: '.($count === 0 ? '0.00%' : number_format(($hits / $count) * 100, 2).'%'));
@@ -66,6 +93,16 @@ final class AgentEvaluateCommand extends Command
         $this->line('Average planner latency: '.($count === 0 ? '0ms' : number_format($totalLatency / $count, 2).'ms'));
         $this->line('Failure rate: '.($count === 0 ? '0.00%' : number_format((($count - $hits) / $count) * 100, 2).'%'));
         $this->line('Groundedness and citation coverage are measured by the answer service after answer_generation executes.');
+
+        if ((bool) $this->option('save')) {
+            /** @var list<array<string, mixed>> $results */
+            $run = $recorder->persist((string) $this->option('name'), $profile->identifier, $results ?? [], $summary);
+            $this->line('Saved evaluation run: '.$run->id);
+            $regression = (array) $run->regression;
+            foreach ((array) ($regression['messages'] ?? []) as $message) {
+                $this->warn((string) $message);
+            }
+        }
 
         return $hits === $count ? self::SUCCESS : self::FAILURE;
     }
