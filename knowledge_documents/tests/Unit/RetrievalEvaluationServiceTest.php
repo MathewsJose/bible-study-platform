@@ -114,7 +114,8 @@ it('calculates hit precision recall and reciprocal rank for partial results', fu
     expect($result->hit)->toBeTrue()
         ->and($result->precision)->toBe(0.666667)
         ->and($result->recall)->toBe(0.666667)
-        ->and($result->reciprocalRank)->toBe(0.5);
+        ->and($result->reciprocalRank)->toBe(0.5)
+        ->and($result->ndcg)->toBeGreaterThan(0.0);
 });
 
 it('handles no relevant results all relevant results and top k larger than available results', function (): void {
@@ -142,7 +143,8 @@ it('handles no relevant results all relevant results and top k larger than avail
         ->and($allRelevant->hit)->toBeTrue()
         ->and($allRelevant->precision)->toBe(1.0)
         ->and($allRelevant->recall)->toBe(1.0)
-        ->and($allRelevant->reciprocalRank)->toBe(1.0);
+        ->and($allRelevant->reciprocalRank)->toBe(1.0)
+        ->and($allRelevant->ndcg)->toBe(1.0);
 });
 
 it('reports validation problems for duplicate empty and missing expected references', function (): void {
@@ -197,8 +199,10 @@ it('summarizes mean metrics and persists runs when requested', function (): void
         ->and($summary->meanPrecision)->toBe(0.5)
         ->and($summary->meanRecall)->toBe(0.5)
         ->and($summary->mrr)->toBe(0.5)
+        ->and($summary->meanNdcg)->toBe(0.5)
         ->and(DB::table('retrieval_evaluation_runs')->count())->toBe(2)
         ->and(DB::table('retrieval_evaluation_runs')->value('retrieval_strategy'))->toBe('vector')
+        ->and(DB::table('retrieval_evaluation_runs')->value('ndcg'))->toBe(1.0)
         ->and(DB::table('retrieval_evaluation_summaries')->count())->toBe(1);
 });
 

@@ -24,9 +24,13 @@ final class EvaluationQuestionRecordFactory extends Factory
             'intended_references' => ['CCC 457'],
             'missing_references' => [],
             'expected_source_types' => [SourceType::Catechism->value],
+            'expected_answer_facts' => ['The Word became flesh for our salvation.'],
+            'required_citations' => ['CCC 457'],
             'coverage_status' => 'fully_covered',
             'notes' => null,
             'category' => 'christology',
+            'difficulty' => 'medium',
+            'metadata' => [],
         ];
     }
 }

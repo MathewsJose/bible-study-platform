@@ -20,6 +20,9 @@ final readonly class RetrievalEvaluationResult
         public float $precision,
         public float $recall,
         public float $reciprocalRank,
+        public float $ndcg,
+        public float $sourceCoverage,
+        public array $sourceCoverageDetails,
         public int $executionTimeMs,
     ) {}
 
@@ -35,6 +38,9 @@ final readonly class RetrievalEvaluationResult
             'precision' => $this->precision,
             'recall' => $this->recall,
             'reciprocal_rank' => $this->reciprocalRank,
+            'ndcg' => $this->ndcg,
+            'source_coverage' => $this->sourceCoverage,
+            'source_coverage_details' => $this->sourceCoverageDetails,
             'execution_time_ms' => $this->executionTimeMs,
         ];
     }

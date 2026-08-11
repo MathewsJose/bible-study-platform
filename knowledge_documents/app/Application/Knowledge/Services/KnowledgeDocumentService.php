@@ -78,12 +78,25 @@ final readonly class KnowledgeDocumentService
                 continue;
             }
 
-            if ($record->getAttribute($field) !== $data[$field]) {
+            if ($this->comparableValue($field, $record->getAttribute($field)) !== $this->comparableValue($field, $data[$field])) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function comparableValue(string $field, mixed $value): mixed
+    {
+        if ($field !== 'metadata' || ! is_array($value)) {
+            return $value;
+        }
+
+        unset($value['imported_at']);
+
+        ksort($value);
+
+        return $value;
     }
 
     public function get(string $id): KnowledgeDocumentData

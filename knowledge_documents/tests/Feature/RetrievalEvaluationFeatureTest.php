@@ -85,7 +85,9 @@ it('runs retrieval evaluation through the API and can save results', function ()
         ->assertJsonPath('data.hit_rate', 1)
         ->assertJsonPath('data.precision', 1)
         ->assertJsonPath('data.recall', 1)
-        ->assertJsonPath('data.mrr', 1);
+        ->assertJsonPath('data.mrr', 1)
+        ->assertJsonPath('data.ndcg', 1)
+        ->assertJsonPath('data.source_coverage', 1);
 
     expect(DB::table('retrieval_evaluation_runs')->count())->toBe(1)
         ->and(DB::table('retrieval_evaluation_summaries')->count())->toBe(1);

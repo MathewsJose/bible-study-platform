@@ -38,6 +38,12 @@ final readonly class ExecutionFingerprintService
                 'max_tokens' => config('ai.max_tokens', 800),
                 'prompt' => config('ai.prompt', []),
             ],
+            'llm' => [
+                'default_provider' => config('llm.default_provider', config('ai.provider', 'null')),
+                'default_model' => config('llm.default_model', config('ai.model', 'null-answer-model')),
+                'routing' => config('llm.routing', []),
+                'profiles' => config('llm.profiles', []),
+            ],
             'corpus_hash' => $corpus['hash'],
             'app_version' => config('app.version', 'local'),
         ];

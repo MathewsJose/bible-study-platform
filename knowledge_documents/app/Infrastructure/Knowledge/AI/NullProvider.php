@@ -22,6 +22,12 @@ final readonly class NullProvider implements LLMProviderInterface
             promptTokens: $this->countTokens(json_encode($request->messages, JSON_THROW_ON_ERROR)),
             completionTokens: $this->countTokens((string) config('ai.guardrails.insufficient_evidence_message')),
             metadata: ['offline' => true],
+            finishReason: 'deterministic_fallback',
+            usage: [
+                'input_tokens' => $this->countTokens(json_encode($request->messages, JSON_THROW_ON_ERROR)),
+                'output_tokens' => $this->countTokens((string) config('ai.guardrails.insufficient_evidence_message')),
+                'total_tokens' => $this->countTokens(json_encode($request->messages, JSON_THROW_ON_ERROR)) + $this->countTokens((string) config('ai.guardrails.insufficient_evidence_message')),
+            ],
         );
     }
 

@@ -9,6 +9,7 @@ final readonly class LLMCompletionRequest
     /**
      * @param  list<array{role: string, content: string}>  $messages
      * @param  array<string, mixed>  $options
+     * @param  array<string, mixed>  $metadata
      */
     public function __construct(
         public array $messages,
@@ -16,5 +17,6 @@ final readonly class LLMCompletionRequest
         public float $temperature = 0.0,
         public int $maxTokens = 800,
         public array $options = [],
+        public array $metadata = [],
     ) {}
 }

@@ -8,6 +8,7 @@ final readonly class LLMCompletionResponse
 {
     /**
      * @param  array<string, mixed>  $metadata
+     * @param  array<string, int|null>  $usage
      */
     public function __construct(
         public string $content,
@@ -17,5 +18,17 @@ final readonly class LLMCompletionResponse
         public ?int $promptTokens = null,
         public ?int $completionTokens = null,
         public array $metadata = [],
+        public ?string $finishReason = null,
+        public array $usage = [],
+        public ?float $estimatedCost = null,
     ) {}
+
+    public function totalTokens(): ?int
+    {
+        if ($this->promptTokens === null || $this->completionTokens === null) {
+            return null;
+        }
+
+        return $this->promptTokens + $this->completionTokens;
+    }
 }

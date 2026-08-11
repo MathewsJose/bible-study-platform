@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property float $mean_precision
  * @property float $mean_recall
  * @property float $mrr
+ * @property float $mean_ndcg
+ * @property float $mean_source_coverage
  * @property int $average_latency_ms
  * @property array<string, mixed> $configuration
  */
@@ -42,6 +44,8 @@ final class RetrievalEvaluationSummaryRecord extends Model
         'mean_precision',
         'mean_recall',
         'mrr',
+        'mean_ndcg',
+        'mean_source_coverage',
         'average_latency_ms',
         'configuration',
     ];
@@ -55,6 +59,8 @@ final class RetrievalEvaluationSummaryRecord extends Model
             'mean_precision' => 'float',
             'mean_recall' => 'float',
             'mrr' => 'float',
+            'mean_ndcg' => 'float',
+            'mean_source_coverage' => 'float',
             'average_latency_ms' => 'integer',
             'configuration' => 'array',
         ];

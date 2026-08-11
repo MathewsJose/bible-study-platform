@@ -83,6 +83,30 @@ External MCP client
 
 MCP is disabled by default and requires `MCP_TOKEN`. It is additive; the internal agent and Core API integration remain unchanged.
 
+The Knowledge Service includes a production AI evaluation and regression platform for retrieval, answer grounding, agent planning, and safety controls. It stores evaluation runs in `ai_evaluation_runs` / `ai_evaluation_results`, captures configuration and corpus fingerprints, and compares saved runs with threshold-based regression checks:
+
+```bash
+cd knowledge_documents
+php artisan db:seed --class=EvaluationQuestionSeeder
+php artisan ai:evaluate --type=safety --save
+php artisan ai:evaluate --type=retrieval --strategy=hybrid --top-k=5 --limit=10 --save
+php artisan ai:evaluate:compare --baseline=BASELINE_RUN_ID --current=CURRENT_RUN_ID --format=json
+```
+
+The evaluation layer is deterministic regression tooling. It checks explicit dataset references, citations, source coverage, tool selection, and guardrail behavior; it does not prove theological truth or fabricate token/cost data.
+
+The Knowledge Service also owns LLM provider selection. The Core API and frontend do not depend on OpenAI, Anthropic, Google, Ollama, local model servers, or provider SDKs directly:
+
+```text
+Core API / frontend
+  -> Knowledge Service answer or agent endpoint
+  -> LlmModelRouter
+  -> LlmProviderRegistry
+  -> local / OpenAI / Anthropic / Google / Ollama / null provider
+```
+
+Local development uses the deterministic `null` provider by default and can point at an OpenAI-compatible local endpoint with `LLM_LOCAL_BASE_URL`. External providers are blocked unless `AI_ALLOW_EXTERNAL_PROCESSING=true` and credentials are configured. Provider selection is a technical control, not a GDPR or EU-residency claim.
+
 This architecture makes the backend easier to reason about, test, and extend:
 
 - domain rules live in the Domain layer, not in controllers

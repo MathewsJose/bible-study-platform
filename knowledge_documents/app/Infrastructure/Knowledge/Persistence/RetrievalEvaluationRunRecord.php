@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float $precision
  * @property float $recall
  * @property float $reciprocal_rank
+ * @property float $ndcg
+ * @property array<string, mixed>|null $source_coverage
  * @property int $execution_time_ms
  */
 final class RetrievalEvaluationRunRecord extends Model
@@ -54,6 +56,8 @@ final class RetrievalEvaluationRunRecord extends Model
         'precision',
         'recall',
         'reciprocal_rank',
+        'ndcg',
+        'source_coverage',
         'execution_time_ms',
     ];
 
@@ -70,6 +74,8 @@ final class RetrievalEvaluationRunRecord extends Model
             'precision' => 'float',
             'recall' => 'float',
             'reciprocal_rank' => 'float',
+            'ndcg' => 'float',
+            'source_coverage' => 'array',
             'execution_time_ms' => 'integer',
         ];
     }

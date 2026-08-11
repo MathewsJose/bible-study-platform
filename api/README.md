@@ -509,6 +509,47 @@ The Core API should pass user requests over HTTP and treat Knowledge Service sec
 
 This is a technical guardrail layer, not a legal GDPR compliance claim. Legal compliance depends on the full product, hosting, policies, contracts, and operational practices.
 
+## Knowledge Service LLM Providers
+
+LLM provider abstraction belongs to the `knowledge_documents` service. The Core API does not call OpenAI, Anthropic, Google, Ollama, or local model servers directly, and it does not store provider credentials.
+
+Knowledge Service provider flow:
+
+```text
+Core API /v1/knowledge/answer or /v1/knowledge/agents/run
+  -> Knowledge Service
+  -> LlmModelRouter
+  -> LlmProviderRegistry
+  -> configured provider/model
+```
+
+Useful Knowledge Service diagnostics:
+
+```bash
+cd ../knowledge_documents
+php artisan ai:providers:health
+php artisan ai:model:compare --models=null:null-answer-model,null:null-answer-model --type=safety
+```
+
+External providers require Knowledge Service configuration and must pass `AI_ALLOW_EXTERNAL_PROCESSING`. PII handling, prompt-injection checks, and provider policy are enforced before provider calls. Provider availability depends on local endpoints or credentials; the application does not claim GDPR compliance or EU residency from provider routing alone.
+
+## Knowledge Service Evaluation
+
+Production AI evaluation belongs to the `knowledge_documents` service. The Core API does not proxy evaluation mutation endpoints to frontend clients.
+
+Use the Knowledge Service CLI for regression checks:
+
+```bash
+cd ../knowledge_documents
+php artisan ai:evaluate --type=retrieval --strategy=hybrid --top-k=5 --save
+php artisan ai:evaluate --type=answer --limit=5 --save
+php artisan ai:evaluate --type=agent --save
+php artisan ai:evaluate --type=safety --save
+php artisan ai:evaluate:compare --baseline=BASELINE_RUN_ID --current=CURRENT_RUN_ID
+```
+
+Saved runs include dataset metadata, retrieval/AI/security configuration, corpus fingerprints, metrics, warnings, and per-question results. The evaluator checks deterministic evidence such as expected references, citation correctness, source coverage, tool selection, and safety policy outcomes; it does not claim to prove theological truth.
+
 ## Testing
 
 Tests are configured to prefer the committed `.env.testing` file. If `.env` is missing, the test bootstrap falls back to `.env.example` so `php artisan test` can run from a fresh clone without manual environment setup.

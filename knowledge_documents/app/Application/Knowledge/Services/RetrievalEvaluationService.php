@@ -35,7 +35,9 @@ final readonly class RetrievalEvaluationService
         return EvaluationQuestionRecord::query()
             ->when($options['questionId'] ?? null, fn (Builder $query, string $questionId): Builder => $query->whereKey($questionId))
             ->when($options['category'] ?? null, fn (Builder $query, string $category): Builder => $query->where('category', $category))
+            ->when($options['difficulty'] ?? null, fn (Builder $query, string $difficulty): Builder => $query->where('difficulty', $difficulty))
             ->orderBy('category')
+            ->orderBy('difficulty')
             ->orderBy('question')
             ->when($options['limit'] ?? null, fn (Builder $query, int $limit): Builder => $query->limit($limit))
             ->get();
@@ -143,6 +145,8 @@ final readonly class RetrievalEvaluationService
             'mean_precision' => $summary->meanPrecision,
             'mean_recall' => $summary->meanRecall,
             'mrr' => $summary->mrr,
+            'ndcg' => $summary->meanNdcg,
+            'source_coverage' => $summary->meanSourceCoverage,
             'average_latency_ms' => $summary->averageLatencyMs,
             'saved' => $save,
         ]);
@@ -202,6 +206,7 @@ final readonly class RetrievalEvaluationService
         $executionTimeMs = (int) round((microtime(true) - $startedAt) * 1000);
 
         $expectedReferences = $this->uniqueStrings($question->expected_references ?? []);
+        $expectedSourceTypes = $this->uniqueStrings($question->expected_source_types ?? []);
         $retrievedResults = array_map(
             static fn (RankedKnowledgeDocumentData|HybridRankedKnowledgeDocumentData $result): array => [
                 'id' => $result->document->id,
@@ -224,6 +229,7 @@ final readonly class RetrievalEvaluationService
 
         $relevantRetrieved = array_values(array_intersect($retrievedReferences, $expectedReferences));
         $firstRelevantRank = $this->firstRelevantRank($retrievedReferences, $expectedReferences);
+        $sourceCoverage = $this->sourceCoverage($retrievedResults, $expectedSourceTypes);
 
         return new RetrievalEvaluationResult(
             question: $question,
@@ -233,6 +239,9 @@ final readonly class RetrievalEvaluationService
             precision: count($retrievedResults) === 0 ? 0.0 : round(count($relevantRetrieved) / count($retrievedResults), 6),
             recall: $expectedReferences === [] ? 0.0 : round(count(array_unique($relevantRetrieved)) / count($expectedReferences), 6),
             reciprocalRank: $firstRelevantRank === null ? 0.0 : round(1 / $firstRelevantRank, 6),
+            ndcg: $this->ndcg($retrievedReferences, $expectedReferences),
+            sourceCoverage: (float) $sourceCoverage['coverage'],
+            sourceCoverageDetails: $sourceCoverage,
             executionTimeMs: $executionTimeMs,
         );
     }
@@ -246,7 +255,7 @@ final readonly class RetrievalEvaluationService
         $total = count($results);
 
         if ($total === 0) {
-            return new RetrievalEvaluationSummary(0, 0.0, 0.0, 0.0, 0.0, 0, $configuration, []);
+            return new RetrievalEvaluationSummary(0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, $configuration, []);
         }
 
         return new RetrievalEvaluationSummary(
@@ -255,6 +264,8 @@ final readonly class RetrievalEvaluationService
             meanPrecision: $this->mean(array_map(static fn (RetrievalEvaluationResult $result): float => $result->precision, $results)),
             meanRecall: $this->mean(array_map(static fn (RetrievalEvaluationResult $result): float => $result->recall, $results)),
             mrr: $this->mean(array_map(static fn (RetrievalEvaluationResult $result): float => $result->reciprocalRank, $results)),
+            meanNdcg: $this->mean(array_map(static fn (RetrievalEvaluationResult $result): float => $result->ndcg, $results)),
+            meanSourceCoverage: $this->mean(array_map(static fn (RetrievalEvaluationResult $result): float => $result->sourceCoverage, $results)),
             averageLatencyMs: (int) round(array_sum(array_map(static fn (RetrievalEvaluationResult $result): int => $result->executionTimeMs, $results)) / $total),
             configuration: $configuration,
             results: $results,
@@ -275,10 +286,12 @@ final readonly class RetrievalEvaluationService
                 'retrieval_strategy' => $strategy,
                 'retrieved_results' => $result->retrievedResults,
                 'expected_references' => $result->expectedReferences,
+                'source_coverage' => $result->sourceCoverageDetails,
                 'hit' => $result->hit,
                 'precision' => $result->precision,
                 'recall' => $result->recall,
                 'reciprocal_rank' => $result->reciprocalRank,
+                'ndcg' => $result->ndcg,
                 'execution_time_ms' => $result->executionTimeMs,
             ]);
         }
@@ -289,6 +302,8 @@ final readonly class RetrievalEvaluationService
             'mean_precision' => $summary->meanPrecision,
             'mean_recall' => $summary->meanRecall,
             'mrr' => $summary->mrr,
+            'mean_ndcg' => $summary->meanNdcg,
+            'mean_source_coverage' => $summary->meanSourceCoverage,
             'average_latency_ms' => $summary->averageLatencyMs,
             'configuration' => $summary->configuration,
         ]);
@@ -299,6 +314,8 @@ final readonly class RetrievalEvaluationService
             meanPrecision: $summary->meanPrecision,
             meanRecall: $summary->meanRecall,
             mrr: $summary->mrr,
+            meanNdcg: $summary->meanNdcg,
+            meanSourceCoverage: $summary->meanSourceCoverage,
             averageLatencyMs: $summary->averageLatencyMs,
             configuration: $summary->configuration,
             results: $summary->results,
@@ -327,6 +344,57 @@ final readonly class RetrievalEvaluationService
         }
 
         return null;
+    }
+
+    /**
+     * @param  list<string>  $retrievedReferences
+     * @param  list<string>  $expectedReferences
+     */
+    private function ndcg(array $retrievedReferences, array $expectedReferences): float
+    {
+        if ($expectedReferences === [] || $retrievedReferences === []) {
+            return 0.0;
+        }
+
+        $dcg = 0.0;
+        foreach ($retrievedReferences as $index => $reference) {
+            if (in_array($reference, $expectedReferences, true)) {
+                $dcg += 1 / log($index + 2, 2);
+            }
+        }
+
+        $idealCount = min(count($expectedReferences), count($retrievedReferences));
+        $idcg = 0.0;
+        for ($index = 0; $index < $idealCount; $index++) {
+            $idcg += 1 / log($index + 2, 2);
+        }
+
+        return $idcg <= 0.0 ? 0.0 : round($dcg / $idcg, 6);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $retrievedResults
+     * @param  list<string>  $expectedSourceTypes
+     * @return array<string, mixed>
+     */
+    private function sourceCoverage(array $retrievedResults, array $expectedSourceTypes): array
+    {
+        $retrieved = array_values(array_unique(array_filter(array_map(
+            static fn (array $result): string => (string) ($result['source_type'] ?? ''),
+            $retrievedResults,
+        ))));
+        $found = array_values(array_intersect($expectedSourceTypes, $retrieved));
+        $missing = array_values(array_diff($expectedSourceTypes, $retrieved));
+
+        return [
+            'expected_source_types' => $expectedSourceTypes,
+            'retrieved_source_types' => $retrieved,
+            'found_source_types' => $found,
+            'missing_source_types' => $missing,
+            'coverage' => $expectedSourceTypes === [] ? 1.0 : round(count($found) / count($expectedSourceTypes), 6),
+            'single_source_success' => count($expectedSourceTypes) <= 1 && $missing === [],
+            'multi_source_success' => count($expectedSourceTypes) > 1 && $missing === [],
+        ];
     }
 
     /**

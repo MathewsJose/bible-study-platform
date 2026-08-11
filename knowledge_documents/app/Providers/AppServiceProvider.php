@@ -17,6 +17,8 @@ use App\Application\Knowledge\Agents\Services\DeterministicAgentPlanner;
 use App\Application\Knowledge\Agents\Services\KnowledgeAgent;
 use App\Application\Knowledge\Agents\Services\LLMAgentPlanner;
 use App\Application\Knowledge\Answering\Contracts\LLMProviderInterface;
+use App\Application\Knowledge\Evaluation\Contracts\AnswerEvaluatorInterface;
+use App\Application\Knowledge\Evaluation\Services\DeterministicAnswerEvaluator;
 use App\Application\Knowledge\Graph\Contracts\KnowledgeGraphRepositoryInterface;
 use App\Application\Knowledge\Graph\Resolvers\CatechismReferenceResolver;
 use App\Application\Knowledge\Graph\Resolvers\ChurchFatherReferenceResolver;
@@ -33,8 +35,9 @@ use App\Infrastructure\Knowledge\Embedding\DummyEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\LocalEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\NullEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\OpenAIEmbeddingProvider;
-use App\Infrastructure\Knowledge\AI\ClaudeProvider;
-use App\Infrastructure\Knowledge\AI\GeminiProvider;
+use App\Infrastructure\Knowledge\AI\AnthropicProvider;
+use App\Infrastructure\Knowledge\AI\GoogleProvider;
+use App\Infrastructure\Knowledge\AI\LocalProvider;
 use App\Infrastructure\Knowledge\AI\NullProvider;
 use App\Infrastructure\Knowledge\AI\OllamaProvider;
 use App\Infrastructure\Knowledge\AI\OpenAIProvider as OpenAIAnswerProvider;
@@ -67,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AgentTraceRepositoryInterface::class, EloquentAgentTraceRepository::class);
         $this->app->bind(AgentInterface::class, KnowledgeAgent::class);
         $this->app->bind(AISecurityPolicyInterface::class, AISecurityPolicy::class);
+        $this->app->bind(AnswerEvaluatorInterface::class, DeterministicAnswerEvaluator::class);
         $this->app->bind(PersonalDataLocatorInterface::class, TracePersonalDataService::class);
         $this->app->bind(PersonalDataDeletionInterface::class, TracePersonalDataService::class);
         $this->app->bind(AgentPlannerInterface::class, fn (): AgentPlannerInterface => match (config('agents.planner', 'deterministic')) {
@@ -157,11 +161,12 @@ class AppServiceProvider extends ServiceProvider
 
     private function llmProviderClass(): string
     {
-        return match (config('ai.provider', 'null')) {
+        return match (config('llm.default_provider', config('ai.provider', 'null'))) {
             'openai' => OpenAIAnswerProvider::class,
+            'local' => LocalProvider::class,
             'ollama' => OllamaProvider::class,
-            'gemini' => GeminiProvider::class,
-            'claude' => ClaudeProvider::class,
+            'gemini', 'google' => GoogleProvider::class,
+            'claude', 'anthropic' => AnthropicProvider::class,
             default => NullProvider::class,
         };
     }

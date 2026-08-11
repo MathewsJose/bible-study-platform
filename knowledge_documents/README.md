@@ -399,7 +399,7 @@ Seed development evaluation questions:
 php artisan db:seed --class=EvaluationQuestionSeeder
 ```
 
-The seeder contains about 20 Catholic retrieval questions across Christology, Sacraments, Grace, Trinity, Mary, Salvation, and Scripture. It only stores expected references that currently exist in `knowledge_documents`; missing references are printed as warnings instead of invented.
+The seeder contains 59 Catholic evaluation questions across Christology, Sacraments, Grace, Trinity, Mary, Salvation, Scripture, Church, saints, Church Fathers, and evaluation-specific cross-source scenarios. It only stores expected references that currently exist in `knowledge_documents`; missing references are printed as warnings instead of invented.
 
 Run a baseline evaluation:
 
@@ -463,11 +463,13 @@ Example response:
 ```json
 {
   "data": {
-    "total_questions": 20,
+    "total_questions": 59,
     "hit_rate": 0.85,
     "precision": 0.61,
     "recall": 0.72,
     "mrr": 0.79,
+    "ndcg": 0.82,
+    "source_coverage": 0.76,
     "average_latency_ms": 120,
     "configuration": {
       "retrieval": "hybrid",
@@ -487,6 +489,78 @@ Metrics in this project:
 - Precision@K: how many retrieved results were expected references. If top 5 contains `CCC 457` and `John 1:14`, and only those two were expected, precision is `2 / 5`.
 - Recall@K: how many expected references were retrieved. If expected references are `CCC 456`, `CCC 457`, `CCC 458` and top 5 contains two of them, recall is `2 / 3`.
 - MRR: reciprocal rank of the first expected reference. If the first expected result is ranked second, reciprocal rank is `0.5`.
+- NDCG@K: rewards expected references appearing higher in the ranked list.
+- Source coverage: whether the result set includes the expected source families, such as both `catechism` and `bible_verse` for cross-source questions.
+
+## Production AI Evaluation
+
+Sprint 21 extends the existing retrieval diagnostics into a production regression platform. It reuses the same database-backed `evaluation_questions` dataset and adds deterministic evaluation for answer grounding, citation quality, agent tool planning, and safety guardrails.
+
+```text
+evaluation_questions
+  -> ai:evaluate
+  -> retrieval / answer / agent / safety evaluators
+  -> ai_evaluation_runs
+  -> ai_evaluation_results
+  -> ai:evaluate:compare
+```
+
+Dataset fields:
+
+- `category` and `difficulty`
+- `intended_references`, `expected_references`, and `missing_references`
+- `expected_source_types`
+- `expected_answer_facts`
+- `required_citations`
+- `coverage_status`
+- JSON `metadata`, including whether the scenario requires multiple source types
+
+Run evaluation:
+
+```bash
+php artisan ai:evaluate --type=retrieval --strategy=hybrid --top-k=5 --limit=10 --save
+php artisan ai:evaluate --type=answer --limit=5 --save
+php artisan ai:evaluate --type=agent --save
+php artisan ai:evaluate --type=safety --save
+php artisan ai:evaluate --all --limit=10 --save --name=nightly-ai-eval
+```
+
+Machine-readable output:
+
+```bash
+php artisan ai:evaluate --type=safety --format=json
+```
+
+Saved runs capture configuration and fingerprints for regression analysis:
+
+- retrieval strategy, top K, category, and difficulty filters
+- AI provider/model and embedding model
+- security policy configuration
+- corpus fingerprint from the replay subsystem
+- evaluation threshold configuration
+
+Compare two saved runs:
+
+```bash
+php artisan ai:evaluate:compare --baseline=BASELINE_RUN_ID --current=CURRENT_RUN_ID
+php artisan ai:evaluate:compare --baseline=BASELINE_RUN_ID --current=CURRENT_RUN_ID --format=json
+```
+
+Regression thresholds are environment-driven:
+
+```env
+EVAL_MINIMUM_AVERAGE_SCORE=0.50
+EVAL_MINIMUM_HIT_AT_K=0.50
+EVAL_MINIMUM_MRR=0.20
+EVAL_MINIMUM_CITATION_CORRECTNESS=0.70
+EVAL_MAXIMUM_LATENCY_MS=5000
+EVAL_MAXIMUM_FAILURE_RATE=0.30
+EVAL_MAXIMUM_SCORE_DROP=0.05
+```
+
+Answer evaluation is deterministic. It checks whether cited references exist, whether citations came from retrieved supporting documents, whether required citations are present, whether expected source types are covered, and whether expected answer facts are grounded in the answer or supporting context. It does not judge theological truth beyond the explicit dataset facts and corpus references.
+
+Agent evaluation checks deterministic planner behavior against configured scenarios: expected tools, missing tools, unnecessary tools, duplicate calls, failed tool slots, and security blocks. Safety evaluation checks PII handling, prompt-injection blocking, resource limits, and provider/tool guardrail behavior.
 
 Manual Docker verification:
 
@@ -743,6 +817,8 @@ Question
   -> Advanced Retrieval Engine
   -> CitationBuilder
   -> PromptBuilder
+  -> LlmModelRouter
+  -> LlmProviderRegistry
   -> LLMProviderInterface
   -> ResponseValidator
   -> ConfidenceScorer
@@ -752,12 +828,17 @@ Question
 Provider abstraction:
 
 - `LLMProviderInterface`: completion, streaming-ready iterable output, token counting, metadata, provider identifier.
-- `NullProvider`: safe default for local development and tests.
+- `LlmModelRouter`: deterministic configuration-based selection for tasks such as answer generation, agent planning, summarization, classification, and evaluation.
+- `LlmProviderRegistry`: resolves configured providers through dependency injection.
+- `LlmModelRegistry`: records known model capabilities when they are explicitly configured.
+- `NullProvider`: deterministic safe default for local development and tests.
+- `LocalProvider`: OpenAI-compatible local endpoint adapter for local model servers.
 - `OpenAIProvider`: HTTP-based chat completion adapter.
 - `OllamaProvider`: local Ollama chat adapter.
-- `GeminiProvider` and `ClaudeProvider`: provider-specific adapter placeholders using the shared HTTP boundary for future completion.
+- `AnthropicProvider` / `ClaudeProvider`: Anthropic Messages API adapter.
+- `GoogleProvider` / `GeminiProvider`: Google Generative Language adapter.
 
-Configuration lives in `config/ai.php`:
+Answer behavior still lives in `config/ai.php`. Provider/model selection lives in `config/llm.php`:
 
 ```env
 AI_PROVIDER=null
@@ -772,7 +853,58 @@ AI_REQUIRE_CITATIONS=true
 OPENAI_API_KEY=
 OPENAI_CHAT_URL=https://api.openai.com/v1/chat/completions
 OLLAMA_CHAT_URL=http://ollama:11434/api/chat
+LLM_DEFAULT_PROVIDER=null
+LLM_DEFAULT_MODEL=null-answer-model
+LLM_PROFILE_ANSWER_GENERATION=fast_local
+LLM_FAST_LOCAL_PROVIDER=null
+LLM_FAST_LOCAL_MODEL=null-answer-model
+LLM_LOCAL_BASE_URL=
+LLM_LOCAL_MODEL=local-model
+LLM_OPENAI_API_KEY=
+LLM_OPENAI_MODEL=gpt-4o-mini
+LLM_ANTHROPIC_API_KEY=
+LLM_ANTHROPIC_MODEL=claude-3-5-haiku-latest
+LLM_GOOGLE_API_KEY=
+LLM_GOOGLE_MODEL=gemini-1.5-flash
 ```
+
+Local development does not require paid API credentials. The default `fast_local` profile points at the deterministic `null` provider. To use a local OpenAI-compatible server, set `LLM_FAST_LOCAL_PROVIDER=local` and `LLM_LOCAL_BASE_URL` to the local server base URL.
+
+Provider policy:
+
+- `AI_ALLOW_EXTERNAL_PROCESSING=false` blocks external providers such as OpenAI, Anthropic, and Google.
+- Providers listed in `AI_LOCAL_PROVIDERS` are treated as local for policy purposes.
+- PII handling uses the existing `AI_PII_ACTION`: `allow`, `redact`, or `block`.
+- The provider layer never logs or displays API keys.
+
+Failure behavior:
+
+- Authentication, rate-limit, timeout, configuration, and provider errors are mapped to provider-independent LLM exceptions.
+- The answer service fails safely with the configured insufficient-evidence response.
+- Configured fallback profiles are attempted only after policy checks. A policy-denied external provider does not silently fall through to another external provider.
+- Streaming and provider-specific tool calling are intentionally left as future extension points.
+
+Usage and cost:
+
+- `LLMCompletionResponse` records provider/model, latency, finish reason, token usage when supplied by the provider, and optional estimated cost.
+- Cost is `null` unless a pricing table is explicitly configured in `config/llm.php`.
+- Token and cost values are not fabricated.
+
+Provider diagnostics:
+
+```bash
+php artisan ai:providers:health
+php artisan ai:providers:health --format=json
+```
+
+Model comparison reuses the Sprint 21 evaluation engine and persists normal evaluation runs:
+
+```bash
+php artisan ai:model:compare --models=null:null-answer-model,null:null-answer-model --type=safety
+php artisan ai:model:compare --models=local:local-model,openai:gpt-4o-mini --type=answer --limit=5 --format=json
+```
+
+External model comparisons require credentials and must pass `AI_ALLOW_EXTERNAL_PROCESSING`.
 
 API:
 
@@ -858,6 +990,8 @@ Conversation readiness interfaces are present for future chat work:
 - `SessionContextInterface`
 
 Answer evaluation scaffolding is provided by `AnswerEvaluationService` for groundedness, citation coverage, faithfulness, response completeness, and latency. Future benchmark datasets can build on this without changing provider implementations.
+
+Saved evaluation runs and replay fingerprints now include LLM routing, profiles, provider, and model configuration. This helps explain provider/model changes without claiming exact reproduction of nondeterministic LLM output.
 
 ## Agentic AI Framework
 

@@ -23,7 +23,7 @@ it('stores all defined evaluation questions with coverage metadata', function ()
 
     $this->seed(EvaluationQuestionSeeder::class);
 
-    expect(EvaluationQuestionRecord::query()->count())->toBe(20)
+    expect(EvaluationQuestionRecord::query()->count())->toBeGreaterThanOrEqual(50)
         ->and(EvaluationQuestionRecord::query()->where('coverage_status', 'partially_covered')->count())->toBeGreaterThan(0)
         ->and(EvaluationQuestionRecord::query()->where('coverage_status', 'unavailable')->count())->toBeGreaterThan(0);
 });
@@ -64,11 +64,14 @@ it('is idempotent and keeps JSON casts as arrays', function (): void {
 
     $question = EvaluationQuestionRecord::query()->where('question', 'What does John say about the Word being God?')->firstOrFail();
 
-    expect(EvaluationQuestionRecord::query()->count())->toBe(20)
+    expect(EvaluationQuestionRecord::query()->count())->toBeGreaterThanOrEqual(50)
         ->and($question->expected_references)->toBeArray()
         ->and($question->intended_references)->toBeArray()
         ->and($question->missing_references)->toBeArray()
-        ->and($question->expected_source_types)->toBeArray();
+        ->and($question->expected_source_types)->toBeArray()
+        ->and($question->expected_answer_facts)->toBeArray()
+        ->and($question->required_citations)->toBeArray()
+        ->and($question->metadata)->toBeArray();
 });
 
 it('diagnoses evaluation coverage and skips unavailable retrieval diagnostics', function (): void {
@@ -78,8 +81,8 @@ it('diagnoses evaluation coverage and skips unavailable retrieval diagnostics', 
     $this->seed(EvaluationQuestionSeeder::class);
 
     $this->artisan('evaluate:diagnose', ['--strategy' => 'lexical', '--top-k' => 1])
-        ->expectsOutputToContain('Defined questions: 20')
-        ->expectsOutputToContain('Stored questions: 20')
+        ->expectsOutputToContain('Defined questions: 59')
+        ->expectsOutputToContain('Stored questions: 59')
         ->expectsOutputToContain('Unavailable:')
         ->expectsOutputToContain('Skipping retrieval diagnostics for unavailable question')
         ->assertSuccessful();

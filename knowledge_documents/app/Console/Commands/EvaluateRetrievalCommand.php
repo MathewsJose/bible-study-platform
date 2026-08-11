@@ -77,6 +77,8 @@ final class EvaluateRetrievalCommand extends Command
         $this->line('Precision@'.$options['topK'].': '.number_format($summary->meanPrecision, 3));
         $this->line('Recall@'.$options['topK'].': '.number_format($summary->meanRecall, 3));
         $this->line('MRR: '.number_format($summary->mrr, 3));
+        $this->line('NDCG@'.$options['topK'].': '.number_format($summary->meanNdcg, 3));
+        $this->line('Source coverage: '.number_format($summary->meanSourceCoverage * 100, 1).'%');
         $this->line('Average latency: '.$summary->averageLatencyMs.' ms');
 
         if ($summary->summaryId !== null) {
@@ -111,7 +113,7 @@ final class EvaluateRetrievalCommand extends Command
         $this->info('Retrieval Strategy Comparison');
 
         $this->table(
-            ['Strategy', "Hit@{$topK}", "Precision@{$topK}", "Recall@{$topK}", 'MRR', 'Avg Latency'],
+            ['Strategy', "Hit@{$topK}", "Precision@{$topK}", "Recall@{$topK}", 'MRR', "NDCG@{$topK}", 'Source Coverage', 'Avg Latency'],
             array_map(
                 static fn (string $strategy, $summary): array => [
                     $strategy,
@@ -119,6 +121,8 @@ final class EvaluateRetrievalCommand extends Command
                     number_format($summary->meanPrecision, 3),
                     number_format($summary->meanRecall, 3),
                     number_format($summary->mrr, 3),
+                    number_format($summary->meanNdcg, 3),
+                    number_format($summary->meanSourceCoverage * 100, 1).'%',
                     $summary->averageLatencyMs.' ms',
                 ],
                 array_keys($summaries),

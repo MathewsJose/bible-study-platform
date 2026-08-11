@@ -16,6 +16,8 @@ final readonly class RetrievalEvaluationSummary
         public float $meanPrecision,
         public float $meanRecall,
         public float $mrr,
+        public float $meanNdcg,
+        public float $meanSourceCoverage,
         public int $averageLatencyMs,
         public array $configuration,
         public array $results,
@@ -31,6 +33,8 @@ final readonly class RetrievalEvaluationSummary
             'precision' => $this->meanPrecision,
             'recall' => $this->meanRecall,
             'mrr' => $this->mrr,
+            'ndcg' => $this->meanNdcg,
+            'source_coverage' => $this->meanSourceCoverage,
             'average_latency_ms' => $this->averageLatencyMs,
             'configuration' => $this->configuration,
         ];
