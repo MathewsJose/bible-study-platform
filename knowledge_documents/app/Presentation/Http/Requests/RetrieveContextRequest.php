@@ -21,10 +21,10 @@ final class RetrieveContextRequest extends FormRequest
     public function rules(RetrievalProfileRepository $profiles): array
     {
         return [
-            'query' => ['required', 'string', 'min:2', 'max:500'],
+            'query' => ['required', 'string', 'min:2', 'max:'.(int) config('ai_security.limits.max_input_characters', 1000)],
             'profile' => ['sometimes', 'string', Rule::in($profiles->identifiers())],
-            'top_k' => ['sometimes', 'integer', 'min:1', 'max:50'],
-            'context_limit' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'top_k' => ['sometimes', 'integer', 'min:1', 'max:'.(int) config('ai_security.limits.max_retrieval_top_k', 50)],
+            'context_limit' => ['sometimes', 'integer', 'min:1', 'max:'.(int) config('ai_security.limits.max_context_documents', 50)],
             'include_explanations' => ['sometimes', 'boolean'],
             'filters' => ['sometimes', 'array'],
             'filters.source_type' => ['sometimes', 'string', Rule::in(SourceType::values())],

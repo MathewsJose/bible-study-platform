@@ -433,6 +433,16 @@ curl "http://localhost/v1/knowledge/agent-replays/REPLAY_ID" \
 
 The core API only forwards `strict` and `dry_run`; provider/model overrides are not exposed over HTTP. Replay compares persisted traces against the current knowledge service configuration and corpus. It does not guarantee identical LLM text.
 
+## Knowledge Service MCP
+
+The MCP server belongs to `knowledge_documents/`, not the core API. External MCP-compatible clients should connect directly to the Knowledge Service MCP endpoint:
+
+```http
+POST http://localhost:8080/mcp/knowledge
+```
+
+The endpoint is bearer-token protected by `MCP_TOKEN`, disabled by default, and exposes only read-only knowledge tools. The core API continues to serve frontend-facing authenticated REST endpoints and does not proxy MCP traffic.
+
 The client does not accept arbitrary URLs from users, so this integration does not introduce SSRF exposure. Secrets are read from config only and must not be logged or committed.
 
 ## Validation Example
@@ -481,6 +491,23 @@ Planned extension points include:
 - User-specific study notes and saved passages
 - Cross-references, maps, timelines, and commentary modules
 - Caching for high-traffic lookup endpoints
+
+## Knowledge Service AI Security
+
+The Core API remains separate from `knowledge_documents`; it does not share Eloquent models or proxy MCP. AI security controls live in the Knowledge Service at the application boundary for retrieval, answer generation, agents, replay, and MCP tools.
+
+Implemented in the Knowledge Service:
+
+- deterministic PII detection with allow/redact/block policy
+- deterministic prompt-injection blocking
+- explicit tool permissions, read-only status, risk level, and approval boundary
+- separate rate limits for retrieval, answer, agent, replay, and MCP
+- external LLM provider policy through `AI_ALLOW_EXTERNAL_PROCESSING`
+- trace/log redaction for secrets and personal data
+
+The Core API should pass user requests over HTTP and treat Knowledge Service security errors such as `PROMPT_INJECTION_DETECTED`, `PII_POLICY_BLOCKED`, `RESOURCE_LIMIT_EXCEEDED`, and `EXTERNAL_PROCESSING_DISABLED` as safe client-facing failures.
+
+This is a technical guardrail layer, not a legal GDPR compliance claim. Legal compliance depends on the full product, hosting, policies, contracts, and operational practices.
 
 ## Testing
 

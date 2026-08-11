@@ -71,6 +71,18 @@ Agent executions are persisted in the knowledge service with redacted metadata, 
 
 Agent replay stores `agent_replays` records and compares execution fingerprints, corpus state, tool sequence, retrieval/citation references, answer structure, and latency. Replay is reproducibility tooling; it does not guarantee identical LLM text when the provider/model is nondeterministic.
 
+The Knowledge Service also exposes an optional MCP server for external AI tool interoperability:
+
+```text
+External MCP client
+  -> knowledge_documents /mcp/knowledge
+  -> MCP adapter
+  -> AgentToolRegistry
+  -> read-only knowledge tools
+```
+
+MCP is disabled by default and requires `MCP_TOKEN`. It is additive; the internal agent and Core API integration remain unchanged.
+
 This architecture makes the backend easier to reason about, test, and extend:
 
 - domain rules live in the Domain layer, not in controllers
@@ -384,6 +396,7 @@ php artisan test
 - The frontend separates UI state, selection orchestration, and API/service access.
 - The monorepo structure supports independent frontend and backend evolution while keeping shared project context in one workspace.
 - Advanced search and indexing are implemented in the `knowledge_documents` service using `pgvector`.
+- AI security guardrails are enforced inside `knowledge_documents` before retrieval, AI answer provider calls, internal agent tool execution, and MCP tool calls. The platform does not claim legal GDPR compliance or EU data residency solely from these controls.
 
 ## Future Opportunities
 

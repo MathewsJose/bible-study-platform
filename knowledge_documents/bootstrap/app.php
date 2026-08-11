@@ -1,5 +1,6 @@
 <?php
 
+use App\Application\Knowledge\Security\Exceptions\AISecurityException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,10 +15,19 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands()
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->validateCsrfTokens(except: [
+            'mcp/knowledge',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->render(function (AISecurityException $exception, Request $request) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'error_code' => $exception->errorCode,
+            ], $exception->statusCode);
+        });
     })->create();

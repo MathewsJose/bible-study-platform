@@ -14,6 +14,8 @@ use App\Application\Knowledge\Integration\Services\RelatedKnowledgeIntegrationSe
 use App\Application\Knowledge\Agents\Observability\Contracts\AgentTraceRepositoryInterface;
 use App\Application\Knowledge\Agents\Replay\Services\AgentReplayService;
 use App\Application\Knowledge\Retrieval\Services\RetrievalEngine;
+use App\Application\Knowledge\Security\Contracts\AISecurityPolicyInterface;
+use App\Application\Knowledge\Security\Exceptions\AISecurityException;
 use App\Application\Knowledge\Services\SearchKnowledgeDocumentsService;
 use App\Infrastructure\Knowledge\Agents\Persistence\AgentReplayRecord;
 use App\Http\Controllers\Controller;
@@ -39,20 +41,27 @@ final class KnowledgeIntegrationController extends Controller
         private readonly AgentInterface $agent,
         private readonly AgentTraceRepositoryInterface $traces,
         private readonly AgentReplayService $replays,
+        private readonly AISecurityPolicyInterface $security,
     ) {}
 
     public function search(KnowledgeIntegrationSearchRequest $request): JsonResponse
     {
+        $security = $this->security->evaluateInput((string) $request->string('query'), ['surface' => 'knowledge_search']);
+
+        if (! $security->allowed) {
+            throw new AISecurityException($security->errorCode, $security->message);
+        }
+
         $filters = $request->safe()->only(['source_type', 'book', 'chapter', 'translation', 'language', 'tradition']);
         $results = $this->search->fullText(
-            query: (string) $request->string('query'),
+            query: $security->safeInput,
             limit: (int) $request->integer('limit', 10),
             filters: $filters,
         );
 
         return response()->json([
             'data' => [
-                'query' => (string) $request->string('query'),
+                'query' => $security->safeInput,
                 'results' => array_map(
                     static fn (RankedKnowledgeDocumentData $result): array => KnowledgeDocumentSummary::fromDocument($result->document, $result->score)->toArray(),
                     $results,
@@ -100,8 +109,14 @@ final class KnowledgeIntegrationController extends Controller
 
     public function retrieve(RetrieveContextRequest $request): JsonResponse
     {
+        $security = $this->security->evaluateInput((string) $request->string('query'), ['surface' => 'knowledge_retrieve']);
+
+        if (! $security->allowed) {
+            throw new AISecurityException($security->errorCode, $security->message);
+        }
+
         $result = $this->retrieval->retrieve(
-            query: (string) $request->string('query'),
+            query: $security->safeInput,
             profile: $request->validated('profile'),
             filters: (array) $request->validated('filters', []),
             topK: $request->validated('top_k') === null ? null : (int) $request->validated('top_k'),

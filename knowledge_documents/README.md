@@ -1201,6 +1201,180 @@ HTTP replay accepts only `strict` and `dry_run`. Provider/model overrides are CL
 
 Comparison output covers environment fingerprints, tool sequence, retrieval/citation references, answer structure, latency, and possible causes such as corpus changes, retrieval changes, tool changes, provider/model drift, or nondeterministic model output.
 
+## MCP Tool Protocol
+
+Sprint 19 exposes selected read-only Knowledge Service tools through the Model Context Protocol (MCP). MCP is an interoperability protocol that lets external AI clients discover tool schemas and invoke tools through standard JSON-RPC methods such as `initialize`, `tools/list`, and `tools/call`.
+
+MCP is an adapter, not a replacement for the internal agent:
+
+```text
+Internal Agent
+  -> AgentToolRegistry
+  -> Existing Tools
+
+External MCP Client
+  -> Laravel MCP HTTP transport
+  -> MCP Tool Adapter
+  -> AgentToolRegistry
+  -> Same Existing Tools
+```
+
+Transport and protocol:
+
+- Implementation: `laravel/mcp`
+- Protocol: Model Context Protocol `2025-06-18`
+- Transport: HTTP JSON-RPC at `POST /mcp/knowledge`
+- Authentication: bearer token from `MCP_TOKEN`
+- Rate limit: `MCP_RATE_LIMIT_PER_MINUTE`
+- Default: disabled until `MCP_ENABLED=true`
+
+Configuration:
+
+```env
+MCP_ENABLED=false
+MCP_TRANSPORT=http
+MCP_PROTOCOL_VERSION=2025-06-18
+MCP_AUTHENTICATION=bearer_token
+MCP_TOKEN=
+MCP_RATE_LIMIT_PER_MINUTE=30
+MCP_ROUTE=mcp/knowledge
+MCP_TOOL_ALLOWLIST=bible_search,scripture_reference,catechism_search,church_father_search,knowledge_graph,advanced_retrieval
+```
+
+Available tools:
+
+- `bible_search` - `READ_KNOWLEDGE`
+- `scripture_reference` - `READ_KNOWLEDGE`
+- `catechism_search` - `READ_KNOWLEDGE`
+- `church_father_search` - `READ_KNOWLEDGE`
+- `knowledge_graph` - `READ_GRAPH`
+- `advanced_retrieval` - `READ_RETRIEVAL`
+
+All exposed tools are marked read-only using MCP annotations. Write tools, imports, replay execution, evaluation mutation, shell commands, filesystem access, arbitrary code execution, and database mutation are not exposed.
+
+Discovery example:
+
+```bash
+curl -X POST "http://localhost:8080/mcp/knowledge" \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+Tool invocation example:
+
+```bash
+curl -X POST "http://localhost:8080/mcp/knowledge" \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H "X-Request-ID: mcp-client-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "call-1",
+    "method": "tools/call",
+    "params": {
+      "name": "bible_search",
+      "arguments": {
+        "query": "Word became flesh",
+        "limit": 5
+      }
+    }
+  }'
+```
+
+Diagnostics:
+
+```bash
+php artisan mcp:health
+php artisan mcp:tools
+```
+
+Observability: MCP tool calls create persistent agent execution/step traces with `profile=mcp` when tracing is enabled and trace tables exist. The trace respects `AGENT_TRACE_STORE_INPUTS`, `AGENT_TRACE_STORE_OUTPUTS`, and redaction rules.
+
+## AI Security, Privacy, And Production Guardrails
+
+Sprint 20 adds deterministic application-level controls around AI inputs, tool execution, MCP calls, traces, provider calls, and expensive endpoints. These controls do not rely on prompts or model behavior.
+
+Implemented architecture:
+
+```text
+Request
+  -> Authentication / route validation
+  -> AI Security Policy
+  -> PII Policy + Prompt Injection Policy + Resource Limits
+  -> Tool Policy + Approval Decision
+  -> Agent / MCP / Retrieval / Answer Service
+  -> Safe Observability
+```
+
+Core components:
+
+- `AISecurityPolicyInterface`: shared boundary for answer, retrieval, agent, and MCP decisions.
+- `PiiDetector`: deterministic detection and redaction for emails, phone numbers, IP addresses, personal URLs, common addresses, contextual names, bearer tokens, and API-key-like values.
+- `PromptInjectionDetector`: deterministic layered checks for requests to reveal hidden instructions, exfiltrate secrets, bypass policy, impersonate system/developer roles, or execute commands.
+- `ToolPolicyCatalog`: explicit tool permission, read/write status, data access, risk level, authentication, and approval metadata.
+- `ProviderPolicy`: blocks external LLM providers unless `AI_ALLOW_EXTERNAL_PROCESSING=true` or the provider is listed as local.
+- `ApprovalDecision`: future human-approval boundary. Current read-only tools return `approval_required=false`.
+- `TracePersonalDataService`: GDPR data locator/deletion foundation for future user identity mapping.
+
+Security error codes:
+
+- `AI_SECURITY_BLOCKED`
+- `PII_POLICY_BLOCKED`
+- `TOOL_NOT_AUTHORIZED`
+- `APPROVAL_REQUIRED`
+- `RESOURCE_LIMIT_EXCEEDED`
+- `EXTERNAL_PROCESSING_DISABLED`
+- `PROMPT_INJECTION_DETECTED`
+
+Configuration:
+
+```env
+AI_SECURITY_ENABLED=true
+AI_PII_ACTION=redact
+AI_PROMPT_INJECTION_ACTION=block
+AI_ALLOW_EXTERNAL_PROCESSING=false
+AI_DATA_POLICY=local_or_redacted
+AI_LOCAL_PROVIDERS=null,ollama,local
+AI_SECURITY_MAX_INPUT_CHARACTERS=1000
+AI_SECURITY_MAX_RETRIEVAL_TOP_K=50
+AI_SECURITY_MAX_AGENT_STEPS=8
+AI_SECURITY_MAX_AGENT_TOOL_CALLS=8
+AI_SECURITY_MAX_MCP_PAYLOAD_BYTES=32768
+AI_RATE_LIMIT_ANSWER_PER_MINUTE=20
+AI_RATE_LIMIT_AGENT_PER_MINUTE=10
+AI_RATE_LIMIT_RETRIEVAL_PER_MINUTE=60
+AI_RATE_LIMIT_REPLAY_PER_MINUTE=10
+```
+
+Diagnostics:
+
+```bash
+php artisan ai:security-health
+```
+
+Data classification:
+
+- `public`: public reference corpus such as Bible, Catechism, and public-domain patristic material.
+- `internal`: service diagnostics, retrieval metadata, and non-user operational context.
+- `personal`: detected personal data in user prompts, histories, tool arguments, or URLs.
+- `sensitive`: secrets, tokens, credentials, or private operational material.
+- `restricted`: future high-risk workflow data requiring explicit authorization and approval.
+
+PII actions:
+
+- `allow`: pass through, still detectable in diagnostics.
+- `redact`: replace detected values with `[REDACTED]` and add a `PII_REDACTED` warning.
+- `block`: reject with `PII_POLICY_BLOCKED`.
+
+MCP security: MCP keeps bearer-token authentication and rate limiting, then calls the same `AISecurityPolicyInterface` used by internal agents. MCP request bodies are size-limited, write tools are not exposed, and policy failures return safe MCP tool errors.
+
+Trace privacy: agent and MCP traces respect `AGENT_TRACE_STORE_INPUTS` and `AGENT_TRACE_STORE_OUTPUTS`. Even when input storage is enabled, the trace sanitizer redacts configured secret patterns and PII. Security events log safe metadata only and never include original sensitive values.
+
+Provider and EU residency notes: `AI_ALLOW_EXTERNAL_PROCESSING=false` prevents external LLM provider calls. Enabling OpenAI, Gemini, Claude, or another remote provider may send redacted prompts, retrieved context, and provider metadata to that provider according to its infrastructure and terms. This application does not claim EU data residency; residency depends on deployment, vendor contracts, subprocessors, and organizational controls.
+
+GDPR note: this service implements technical controls for redaction, minimization, trace retention boundaries, safe events, and future personal-data location/deletion. This is not legal GDPR compliance by itself. Legal compliance also requires organizational processes, lawful basis, notices, DPAs, retention policy, hosting decisions, and operational controls outside this codebase.
+
 ## Import Pipeline
 
 Sprint 8 introduces a source-agnostic import framework. Importers no longer own persistence in the primary pipeline; they only fetch, normalize, and validate source material.

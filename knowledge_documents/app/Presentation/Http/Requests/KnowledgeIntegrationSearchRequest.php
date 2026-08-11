@@ -20,14 +20,14 @@ final class KnowledgeIntegrationSearchRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'query' => ['required', 'string', 'min:2', 'max:500'],
+            'query' => ['required', 'string', 'min:2', 'max:'.(int) config('ai_security.limits.max_input_characters', 1000)],
             'source_type' => ['sometimes', 'string', Rule::in(SourceType::values())],
             'book' => ['sometimes', 'string', 'max:80'],
             'chapter' => ['sometimes', 'integer', 'min:1'],
             'translation' => ['sometimes', 'string', 'max:120'],
             'language' => ['sometimes', 'string', 'max:20'],
             'tradition' => ['sometimes', 'string', Rule::in(Tradition::values())],
-            'limit' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:'.(int) config('ai_security.limits.max_retrieval_top_k', 50)],
         ];
     }
 }

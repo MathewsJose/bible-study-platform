@@ -23,6 +23,11 @@ use App\Application\Knowledge\Graph\Resolvers\ChurchFatherReferenceResolver;
 use App\Application\Knowledge\Graph\Resolvers\ScriptureReferenceResolver;
 use App\Application\Knowledge\Graph\Services\KnowledgeGraphBuilder;
 use App\Application\Knowledge\Importing\Services\KnowledgeSourceRegistry;
+use App\Application\Knowledge\Security\Contracts\AISecurityPolicyInterface;
+use App\Application\Knowledge\Security\Contracts\PersonalDataDeletionInterface;
+use App\Application\Knowledge\Security\Contracts\PersonalDataLocatorInterface;
+use App\Application\Knowledge\Security\Services\AISecurityPolicy;
+use App\Application\Knowledge\Security\Services\TracePersonalDataService;
 use App\Application\Knowledge\Services\WeightedScoreFusionStrategy;
 use App\Infrastructure\Knowledge\Embedding\DummyEmbeddingProvider;
 use App\Infrastructure\Knowledge\Embedding\LocalEmbeddingProvider;
@@ -44,6 +49,9 @@ use App\Infrastructure\Knowledge\Graph\EloquentKnowledgeGraphRepository;
 use App\Infrastructure\Knowledge\Persistence\EloquentEmbeddingRepository;
 use App\Infrastructure\Knowledge\Persistence\EloquentKnowledgeDocumentRepository;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -58,6 +66,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(KnowledgeGraphRepositoryInterface::class, EloquentKnowledgeGraphRepository::class);
         $this->app->bind(AgentTraceRepositoryInterface::class, EloquentAgentTraceRepository::class);
         $this->app->bind(AgentInterface::class, KnowledgeAgent::class);
+        $this->app->bind(AISecurityPolicyInterface::class, AISecurityPolicy::class);
+        $this->app->bind(PersonalDataLocatorInterface::class, TracePersonalDataService::class);
+        $this->app->bind(PersonalDataDeletionInterface::class, TracePersonalDataService::class);
         $this->app->bind(AgentPlannerInterface::class, fn (): AgentPlannerInterface => match (config('agents.planner', 'deterministic')) {
             'llm' => $this->app->make(LLMAgentPlanner::class),
             default => $this->app->make(DeterministicAgentPlanner::class),
@@ -101,6 +112,31 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('mcp', function (Request $request): Limit {
+            return Limit::perMinute((int) config('mcp_knowledge.rate_limit_per_minute', 30))
+                ->by((string) ($request->bearerToken() ?: $request->ip()));
+        });
+
+        RateLimiter::for('knowledge-ai-answer', function (Request $request): Limit {
+            return Limit::perMinute((int) config('ai_security.rate_limits.answer_per_minute', 20))
+                ->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('knowledge-ai-agent', function (Request $request): Limit {
+            return Limit::perMinute((int) config('ai_security.rate_limits.agent_per_minute', 10))
+                ->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('knowledge-ai-retrieval', function (Request $request): Limit {
+            return Limit::perMinute((int) config('ai_security.rate_limits.retrieval_per_minute', 60))
+                ->by($this->rateLimitKey($request));
+        });
+
+        RateLimiter::for('knowledge-ai-replay', function (Request $request): Limit {
+            return Limit::perMinute((int) config('ai_security.rate_limits.replay_per_minute', 10))
+                ->by($this->rateLimitKey($request));
+        });
+
         $this->app->singleton(BibleImporter::class);
         $this->app->singleton(CatechismImporter::class);
         $this->app->singleton(ChurchFatherImporter::class);
@@ -128,5 +164,10 @@ class AppServiceProvider extends ServiceProvider
             'claude' => ClaudeProvider::class,
             default => NullProvider::class,
         };
+    }
+
+    private function rateLimitKey(Request $request): string
+    {
+        return (string) ($request->user()?->getAuthIdentifier() ?: $request->bearerToken() ?: $request->ip());
     }
 }

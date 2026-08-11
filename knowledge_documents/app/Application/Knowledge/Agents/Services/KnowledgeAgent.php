@@ -22,6 +22,7 @@ use App\Application\Knowledge\Agents\Events\ToolExecutionFailed;
 use App\Application\Knowledge\Agents\Events\ToolExecutionStarted;
 use App\Application\Knowledge\Agents\Observability\Contracts\AgentTraceRepositoryInterface;
 use App\Application\Knowledge\Agents\Observability\Services\FailureClassifier;
+use App\Application\Knowledge\Security\Contracts\AISecurityPolicyInterface;
 use App\Infrastructure\Knowledge\Agents\Persistence\AgentExecutionStepRecord;
 use Illuminate\Support\Str;
 use Throwable;
@@ -35,10 +36,30 @@ final readonly class KnowledgeAgent implements AgentInterface
         private AgentGuardrailPolicy $guardrails,
         private AgentTraceRepositoryInterface $traces,
         private FailureClassifier $failures,
+        private AISecurityPolicyInterface $security,
     ) {}
 
     public function execute(AgentRequest $request): AgentResponse
     {
+        $inputSecurity = $this->security->evaluateInput($request->input, ['surface' => 'agent']);
+
+        if (! $inputSecurity->allowed) {
+            return $this->blockedResponse($request, $inputSecurity->errorCode, $inputSecurity->message, $inputSecurity->diagnostics());
+        }
+
+        if ($inputSecurity->safeInput !== $request->input) {
+            $request = new AgentRequest(
+                input: $inputSecurity->safeInput,
+                profile: $request->profile,
+                filters: $request->filters,
+                allowedTools: $request->allowedTools,
+                maxSteps: $request->maxSteps,
+                timeoutSeconds: $request->timeoutSeconds,
+                metadata: $request->metadata,
+                requestId: $request->requestId,
+            );
+        }
+
         $state = AgentState::start((string) Str::uuid(), $request, $this->profiles->resolve($request->profile));
         $execution = $this->traces->startExecution($state);
         AgentStarted::dispatch($state);
@@ -90,12 +111,14 @@ final readonly class KnowledgeAgent implements AgentInterface
                         context: ['profile' => $state->profile->identifier],
                     ));
                 } catch (Throwable $exception) {
+                    report($exception);
+
                     $result = new ToolResult(
                         tool: $action->tool,
                         successful: false,
                         status: 'failed',
                         latencyMs: $this->elapsedMs($started),
-                        error: $exception->getMessage(),
+                        error: 'Tool execution failed safely.',
                     );
                 }
 
@@ -166,8 +189,34 @@ final readonly class KnowledgeAgent implements AgentInterface
                 'tool_calls' => count($state->toolResults),
                 'tools_used' => array_values(array_unique($toolsUsed)),
                 'average_tool_latency_ms' => count($state->toolResults) === 0 ? 0 : (int) round(array_sum(array_map(static fn (ToolResult $result): int => $result->latencyMs, $state->toolResults)) / count($state->toolResults)),
+                'security' => $this->security->evaluateInput($state->request->input, ['surface' => 'agent_diagnostics'])->diagnostics(),
             ],
             traceId: (bool) config('agent_observability.tracing.enabled', true) ? $state->agentId : null,
+        );
+    }
+
+    /** @param array<string, mixed> $securityDiagnostics */
+    private function blockedResponse(AgentRequest $request, string $errorCode, string $message, array $securityDiagnostics): AgentResponse
+    {
+        $requestId = $request->id();
+
+        return new AgentResponse(
+            agentId: (string) Str::uuid(),
+            requestId: $requestId,
+            status: 'failed',
+            answer: $message,
+            toolResults: [],
+            trace: [new AgentTraceEntry('ai_security_blocked', 'blocked', 0, context: ['error_code' => $errorCode])],
+            errors: ["{$errorCode}: {$message}"],
+            diagnostics: [
+                'profile' => $request->profile,
+                'duration_ms' => 0,
+                'steps' => 0,
+                'tool_calls' => 0,
+                'tools_used' => [],
+                'average_tool_latency_ms' => 0,
+                'security' => $securityDiagnostics,
+            ],
         );
     }
 

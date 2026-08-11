@@ -7,9 +7,12 @@ namespace App\Application\Knowledge\Agents\Observability\Services;
 use App\Application\Knowledge\Agents\DTOs\AgentAction;
 use App\Application\Knowledge\Agents\DTOs\AgentRequest;
 use App\Application\Knowledge\Agents\DTOs\ToolResult;
+use App\Application\Knowledge\Security\Services\PiiDetector;
 
 final readonly class TracePayloadSanitizer
 {
+    public function __construct(private PiiDetector $pii) {}
+
     /** @return array<string, mixed> */
     public function requestMetadata(AgentRequest $request): array
     {
@@ -117,6 +120,6 @@ final readonly class TracePayloadSanitizer
             $redacted = (string) preg_replace($pattern, '[REDACTED]', $redacted);
         }
 
-        return $redacted;
+        return $this->pii->scan($redacted)->redactedText;
     }
 }

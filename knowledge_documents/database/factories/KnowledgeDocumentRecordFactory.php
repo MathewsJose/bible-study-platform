@@ -24,7 +24,7 @@ final class KnowledgeDocumentRecordFactory extends Factory
             'source_type' => SourceType::Catechism->value,
             'source_name' => 'Catechism of the Catholic Church',
             'tradition' => Tradition::Catholic->value,
-            'reference' => 'CCC '.$this->faker->numberBetween(1, 2865),
+            'reference' => 'CCC '.$this->faker->unique()->numberBetween(1, 1_000_000),
             'title' => $this->faker->sentence(4),
             'content' => $this->faker->paragraphs(3, true),
             'metadata' => ['language' => 'en'],

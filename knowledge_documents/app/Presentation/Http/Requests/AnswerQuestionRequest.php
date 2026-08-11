@@ -21,11 +21,11 @@ final class AnswerQuestionRequest extends FormRequest
     public function rules(RetrievalProfileRepository $profiles): array
     {
         return [
-            'question' => ['required', 'string', 'min:2', 'max:1000'],
+            'question' => ['required', 'string', 'min:2', 'max:'.(int) config('ai_security.limits.max_input_characters', 1000)],
             'profile' => ['sometimes', 'string', Rule::in($profiles->identifiers())],
             'history' => ['sometimes', 'array'],
             'history.*.role' => ['required_with:history', 'string', Rule::in(['user', 'assistant', 'system'])],
-            'history.*.content' => ['required_with:history', 'string', 'max:3000'],
+            'history.*.content' => ['required_with:history', 'string', 'max:'.(int) config('ai_security.limits.max_history_message_characters', 3000)],
             'filters' => ['sometimes', 'array'],
             'filters.source_type' => ['sometimes', 'string', Rule::in(SourceType::values())],
             'filters.source_types' => ['sometimes', 'array'],

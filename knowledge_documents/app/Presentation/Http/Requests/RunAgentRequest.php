@@ -22,11 +22,11 @@ final class RunAgentRequest extends FormRequest
     public function rules(AgentProfileRepository $profiles, AgentToolRegistry $tools): array
     {
         return [
-            'input' => ['required', 'string', 'min:2', 'max:1000'],
+            'input' => ['required', 'string', 'min:2', 'max:'.(int) config('ai_security.limits.max_input_characters', 1000)],
             'profile' => ['sometimes', 'string', Rule::in($profiles->identifiers())],
             'allowed_tools' => ['sometimes', 'array'],
             'allowed_tools.*' => ['string', Rule::in($tools->names())],
-            'max_steps' => ['sometimes', 'integer', 'min:1', 'max:20'],
+            'max_steps' => ['sometimes', 'integer', 'min:1', 'max:'.(int) config('ai_security.limits.max_agent_steps', 8)],
             'timeout_seconds' => ['sometimes', 'integer', 'min:1', 'max:120'],
             'metadata' => ['sometimes', 'array'],
             'metadata.document_id' => ['sometimes', 'string'],
