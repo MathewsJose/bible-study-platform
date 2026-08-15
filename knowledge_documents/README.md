@@ -808,7 +808,7 @@ Diagnostics include stage timings, vector/lexical/graph result counts, expansion
 
 ## AI Answer Service
 
-Sprint 14 adds a provider-independent AI Answer Engine on top of the retrieval engine. It does not generate answers without retrieval, and domain services depend only on `LLMProviderInterface`.
+Sprint 14 adds a provider-independent AI Answer Engine on top of the retrieval engine. Sprint 22 adds `LLMGatewayInterface` as the application boundary for provider/model selection, so answer and agent workflows do not depend on provider SDKs or infrastructure adapters.
 
 Answer pipeline:
 
@@ -817,6 +817,7 @@ Question
   -> Advanced Retrieval Engine
   -> CitationBuilder
   -> PromptBuilder
+  -> LLMGatewayInterface / LlmGateway
   -> LlmModelRouter
   -> LlmProviderRegistry
   -> LLMProviderInterface
@@ -827,6 +828,7 @@ Question
 
 Provider abstraction:
 
+- `LLMGatewayInterface`: application-level gateway for completion requests, provider policy checks, capability checks, model routing, and safe fallback.
 - `LLMProviderInterface`: completion, streaming-ready iterable output, token counting, metadata, provider identifier.
 - `LlmModelRouter`: deterministic configuration-based selection for tasks such as answer generation, agent planning, summarization, classification, and evaluation.
 - `LlmProviderRegistry`: resolves configured providers through dependency injection.
@@ -893,6 +895,8 @@ Usage and cost:
 Provider diagnostics:
 
 ```bash
+php artisan ai:providers
+php artisan ai:llm-health
 php artisan ai:providers:health
 php artisan ai:providers:health --format=json
 ```

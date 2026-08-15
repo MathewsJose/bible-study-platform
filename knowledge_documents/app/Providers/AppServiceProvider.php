@@ -17,6 +17,8 @@ use App\Application\Knowledge\Agents\Services\DeterministicAgentPlanner;
 use App\Application\Knowledge\Agents\Services\KnowledgeAgent;
 use App\Application\Knowledge\Agents\Services\LLMAgentPlanner;
 use App\Application\Knowledge\Answering\Contracts\LLMProviderInterface;
+use App\Application\Knowledge\Answering\Contracts\LLMGatewayInterface;
+use App\Application\Knowledge\Answering\Services\LlmGateway;
 use App\Application\Knowledge\Evaluation\Contracts\AnswerEvaluatorInterface;
 use App\Application\Knowledge\Evaluation\Services\DeterministicAnswerEvaluator;
 use App\Application\Knowledge\Graph\Contracts\KnowledgeGraphRepositoryInterface;
@@ -79,6 +81,7 @@ class AppServiceProvider extends ServiceProvider
         });
         $this->app->bind(EmbeddingProviderInterface::class, fn (): EmbeddingProviderInterface => $this->app->make($this->embeddingProviderClass()));
         $this->app->bind(LLMProviderInterface::class, fn (): LLMProviderInterface => $this->app->make($this->llmProviderClass()));
+        $this->app->bind(LLMGatewayInterface::class, LlmGateway::class);
         $this->app->bind(KnowledgeGraphBuilder::class, fn (): KnowledgeGraphBuilder => new KnowledgeGraphBuilder(
             $this->app->make(KnowledgeGraphRepositoryInterface::class),
             [

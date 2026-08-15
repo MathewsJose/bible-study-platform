@@ -100,6 +100,7 @@ The Knowledge Service also owns LLM provider selection. The Core API and fronten
 ```text
 Core API / frontend
   -> Knowledge Service answer or agent endpoint
+  -> LLMGatewayInterface / LlmGateway
   -> LlmModelRouter
   -> LlmProviderRegistry
   -> local / OpenAI / Anthropic / Google / Ollama / null provider

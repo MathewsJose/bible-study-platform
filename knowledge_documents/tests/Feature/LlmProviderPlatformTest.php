@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Application\Knowledge\Answering\Contracts\LLMProviderInterface;
 use App\Application\Knowledge\Answering\DTOs\LLMCompletionRequest;
 use App\Application\Knowledge\Answering\DTOs\LLMCompletionResponse;
+use App\Application\Knowledge\Answering\Exceptions\LlmProviderCapabilityException;
 use App\Application\Knowledge\Answering\Services\AnswerQuestionService;
+use App\Application\Knowledge\Answering\Services\LlmGateway;
 use App\Application\Knowledge\Answering\Services\LlmModelRouter;
 use App\Application\Knowledge\Security\Exceptions\AISecurityException;
 use App\Domain\Knowledge\Enums\SourceType;
@@ -94,6 +96,35 @@ it('routes tasks to configured provider model profiles', function (): void {
         ->and($selection->profileName)->toBe('research');
 });
 
+it('gateway resolves configured providers and normalizes responses', function (): void {
+    $provider = new LlmPlatformTestProvider();
+    app()->instance(LLMProviderInterface::class, $provider);
+    config()->set('llm.routing.answer_generation', 'fast_local');
+    config()->set('llm.profiles.fast_local.provider', 'null');
+    config()->set('llm.profiles.fast_local.model', 'null-answer-model');
+
+    $gateway = app(LlmGateway::class)->complete('answer_generation', new LLMCompletionRequest(
+        messages: [['role' => 'user', 'content' => 'Why did the Word become flesh?']],
+        model: 'ignored-by-gateway',
+    ));
+
+    expect($gateway->completion->provider)->toBe('llm-platform-test')
+        ->and($gateway->completion->model)->toBe('null-answer-model')
+        ->and($gateway->selection->provider)->toBe('null')
+        ->and($provider->lastRequest?->metadata['task'])->toBe('answer_generation');
+});
+
+it('gateway rejects unsupported required capabilities', function (): void {
+    app()->instance(LLMProviderInterface::class, new LlmPlatformTestProvider());
+    config()->set('llm.profiles.fast_local.requires_capabilities', ['tools']);
+    config()->set('llm.models.null:null-answer-model.capabilities.tools', false);
+
+    app(LlmGateway::class)->complete('answer_generation', new LLMCompletionRequest(
+        messages: [['role' => 'user', 'content' => 'Use a tool']],
+        model: 'null-answer-model',
+    ));
+})->throws(LlmProviderCapabilityException::class);
+
 it('shows provider health without exposing secrets', function (): void {
     config()->set('llm.providers.openai.api_key', 'secret-test-key');
 
@@ -104,6 +135,21 @@ it('shows provider health without exposing secrets', function (): void {
         ->and($payload)->toContain('"provider": "openai"')
         ->and($payload)->toContain('"status": "BLOCKED"')
         ->and($payload)->not->toContain('secret-test-key');
+});
+
+it('shows provider diagnostics with the requested command names', function (): void {
+    $providersStatus = Artisan::call('ai:providers', ['--format' => 'json']);
+    $providersPayload = Artisan::output();
+
+    $healthStatus = Artisan::call('ai:llm-health', ['--format' => 'json']);
+    $healthPayload = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($providersStatus)->toBe(0)
+        ->and($providersPayload)->toContain('"provider": "null"')
+        ->and($healthStatus)->toBe(0)
+        ->and($healthPayload['provider'])->toBe('null')
+        ->and($healthPayload['model'])->toBe('null-answer-model')
+        ->and($healthPayload['external_processing'])->toBeFalse();
 });
 
 it('keeps answer generation local and redacts pii before provider calls', function (): void {

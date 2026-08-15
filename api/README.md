@@ -518,6 +518,7 @@ Knowledge Service provider flow:
 ```text
 Core API /v1/knowledge/answer or /v1/knowledge/agents/run
   -> Knowledge Service
+  -> LLMGatewayInterface / LlmGateway
   -> LlmModelRouter
   -> LlmProviderRegistry
   -> configured provider/model
@@ -527,6 +528,8 @@ Useful Knowledge Service diagnostics:
 
 ```bash
 cd ../knowledge_documents
+php artisan ai:providers
+php artisan ai:llm-health
 php artisan ai:providers:health
 php artisan ai:model:compare --models=null:null-answer-model,null:null-answer-model --type=safety
 ```

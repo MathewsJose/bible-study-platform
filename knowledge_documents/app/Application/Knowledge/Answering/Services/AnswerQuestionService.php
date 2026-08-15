@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace App\Application\Knowledge\Answering\Services;
 
-use App\Application\Knowledge\Answering\Contracts\LLMProviderInterface;
+use App\Application\Knowledge\Answering\Contracts\LLMGatewayInterface;
 use App\Application\Knowledge\Answering\DTOs\AnswerData;
 use App\Application\Knowledge\Answering\DTOs\AnswerDiagnostics;
 use App\Application\Knowledge\Answering\DTOs\LLMCompletionRequest;
-use App\Application\Knowledge\Answering\DTOs\LLMCompletionResponse;
-use App\Application\Knowledge\Answering\Exceptions\LlmPolicyDeniedException;
-use App\Application\Knowledge\Answering\Exceptions\LlmProviderException;
 use App\Application\Knowledge\Retrieval\Services\RetrievalEngine;
 use App\Application\Knowledge\Security\Contracts\AISecurityPolicyInterface;
 use App\Application\Knowledge\Security\Exceptions\AISecurityException;
-use Throwable;
 
 final readonly class AnswerQuestionService
 {
@@ -22,9 +18,7 @@ final readonly class AnswerQuestionService
         private RetrievalEngine $retrieval,
         private CitationBuilder $citations,
         private PromptBuilder $prompts,
-        private LLMProviderInterface $provider,
-        private LlmModelRouter $models,
-        private LlmProviderRegistry $providers,
+        private LLMGatewayInterface $gateway,
         private ResponseValidator $validator,
         private ConfidenceScorer $confidence,
         private AISecurityPolicyInterface $security,
@@ -61,27 +55,15 @@ final readonly class AnswerQuestionService
         $timings['prompt_builder'] = $this->elapsedMs($stage);
 
         $stage = microtime(true);
-        $selection = $this->models->select('answer_generation');
-        $provider = $this->providerForSelection($selection->provider);
-        $model = $this->modelForSelection($selection->model, $provider);
-        try {
-            $completion = $this->completeWithPolicy($provider, $model, $prompt->messages, $selection->profileName, $selection->task);
-            $providerWarnings = [];
-        } catch (LlmProviderException $exception) {
-            $completion = $this->fallbackCompletion($exception, $selection->fallbackProfile, $prompt->messages, $stage);
-            $providerWarnings = ['Provider failed safely.'];
-        } catch (AISecurityException $exception) {
-            throw $exception;
-        } catch (Throwable $exception) {
-            $completion = new LLMCompletionResponse(
-                content: (string) config('ai.guardrails.insufficient_evidence_message'),
-                provider: $provider->identifier(),
-                model: $model,
-                latencyMs: $this->elapsedMs($stage),
-                metadata: ['exception' => 'Provider request failed.'],
-            );
-            $providerWarnings = ['Provider failed safely.'];
-        }
+        $gateway = $this->gateway->complete('answer_generation', new LLMCompletionRequest(
+            messages: $prompt->messages,
+            model: (string) config('llm.default_model', config('ai.model', 'null-answer-model')),
+            temperature: (float) config('ai.temperature', 0.0),
+            maxTokens: min((int) config('ai.max_tokens', 800), (int) config('ai_security.limits.max_output_tokens', 1200)),
+        ));
+        $completion = $gateway->completion;
+        $selection = $gateway->selection;
+        $providerWarnings = $gateway->warning === null ? [] : [$gateway->warning];
         $timings['llm_provider'] = $this->elapsedMs($stage);
 
         $stage = microtime(true);
@@ -125,77 +107,6 @@ final readonly class AnswerQuestionService
                 'provider_latency_ms' => $completion->latencyMs,
             ]),
         );
-    }
-
-    /**
-     * @param  list<array{role: string, content: string}>  $messages
-     */
-    private function completeWithPolicy(LLMProviderInterface $provider, string $model, array $messages, string $profile, string $task): LLMCompletionResponse
-    {
-        $providerSecurity = $this->security->evaluateProvider($provider->identifier(), $messages, ['surface' => 'answer']);
-
-        if (! $providerSecurity->allowed) {
-            throw new LlmPolicyDeniedException($providerSecurity->message, $provider->identifier(), $model, ['error_code' => $providerSecurity->errorCode]);
-        }
-
-        return $provider->complete(new LLMCompletionRequest(
-            messages: $messages,
-            model: $model,
-            temperature: (float) config('ai.temperature', 0.0),
-            maxTokens: min((int) config('ai.max_tokens', 800), (int) config('ai_security.limits.max_output_tokens', 1200)),
-            metadata: ['profile' => $profile, 'task' => $task],
-        ));
-    }
-
-    /**
-     * @param  list<array{role: string, content: string}>  $messages
-     */
-    private function fallbackCompletion(LlmProviderException $exception, ?string $fallbackProfile, array $messages, float $started): LLMCompletionResponse
-    {
-        if ($exception instanceof LlmPolicyDeniedException || $fallbackProfile === null || $fallbackProfile === '') {
-            return new LLMCompletionResponse(
-                content: (string) config('ai.guardrails.insufficient_evidence_message'),
-                provider: $exception->provider,
-                model: $exception->model ?? (string) config('llm.default_model', config('ai.model', 'null-answer-model')),
-                latencyMs: $this->elapsedMs($started),
-                metadata: ['exception' => 'Provider request failed.'],
-            );
-        }
-
-        $fallback = $this->models->select('answer_generation', $fallbackProfile);
-        $provider = $this->providers->provider($fallback->provider);
-
-        try {
-            return $this->completeWithPolicy($provider, $fallback->model, $messages, $fallback->profileName, $fallback->task);
-        } catch (Throwable) {
-            return new LLMCompletionResponse(
-                content: (string) config('ai.guardrails.insufficient_evidence_message'),
-                provider: $provider->identifier(),
-                model: $fallback->model,
-                latencyMs: $this->elapsedMs($started),
-                metadata: ['exception' => 'Provider fallback failed.'],
-            );
-        }
-    }
-
-    private function providerForSelection(string $provider): LLMProviderInterface
-    {
-        $currentProvider = $this->provider->identifier();
-
-        if (! in_array($currentProvider, ['null', 'local', 'ollama', 'openai', 'anthropic', 'claude', 'google', 'gemini'], true)) {
-            return $this->provider;
-        }
-
-        return $this->providers->provider($provider);
-    }
-
-    private function modelForSelection(string $model, LLMProviderInterface $provider): string
-    {
-        if (! in_array($provider->identifier(), ['null', 'local', 'ollama', 'openai', 'anthropic', 'google'], true)) {
-            return (string) config('ai.model', $model);
-        }
-
-        return $model;
     }
 
     private function elapsedMs(float $started): int

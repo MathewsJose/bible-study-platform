@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 return [
-    'default_provider' => env('LLM_DEFAULT_PROVIDER', env('AI_PROVIDER', 'null')),
-    'default_model' => env('LLM_DEFAULT_MODEL', env('AI_MODEL', 'null-answer-model')),
+    'default_provider' => env('LLM_DEFAULT_PROVIDER', env('AI_LLM_PROVIDER', env('AI_PROVIDER', 'null'))),
+    'default_model' => env('LLM_DEFAULT_MODEL', env('AI_LLM_MODEL', env('AI_MODEL', 'null-answer-model'))),
     'timeout' => (int) env('LLM_TIMEOUT', env('AI_TIMEOUT', 30)),
     'connect_timeout' => (int) env('LLM_CONNECT_TIMEOUT', 5),
     'retry_attempts' => (int) env('LLM_RETRY_ATTEMPTS', env('AI_RETRY_ATTEMPTS', 2)),
