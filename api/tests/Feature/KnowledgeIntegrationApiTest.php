@@ -202,4 +202,26 @@ class KnowledgeIntegrationApiTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonPath('message', 'Knowledge service unavailable.');
     }
+
+    public function test_answer_service_failure_returns_sanitized_alpha_error(): void
+    {
+        config()->set('knowledge_service.ai_rate_limit_per_minute', 10);
+
+        Http::fake([
+            'knowledge.test/api/v1/knowledge/answer' => Http::response([
+                'message' => 'SQLSTATE provider failure with sk-secret',
+                'errors' => ['service' => ['Internal raw detail']],
+            ], 500),
+        ]);
+
+        $token = User::factory()->create()->createToken('knowledge-test')->plainTextToken;
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/v1/knowledge/answer', ['question' => 'Why did Jesus become man?'])
+            ->assertStatus(503)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Sorry, I couldn\'t generate an answer right now. Please try again.')
+            ->assertJsonMissing(['service' => ['Internal raw detail']])
+            ->assertDontSee('sk-secret', false);
+    }
 }

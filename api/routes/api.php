@@ -3,6 +3,7 @@
 use App\Http\Controllers\UserController;
 use App\Interfaces\Http\Controllers\BibleController;
 use App\Interfaces\Http\Controllers\HistoryController;
+use App\Interfaces\Http\Controllers\Knowledge\AiAnswerFeedbackController;
 use App\Interfaces\Http\Controllers\Knowledge\KnowledgeController;
 use App\Interfaces\Http\Controllers\StudyController;
 use App\Interfaces\Http\Controllers\TeachingsController;
@@ -31,4 +32,7 @@ Route::prefix('v1/knowledge')->group(function (): void {
         Route::post('agents/executions/{id}/replay', [KnowledgeController::class, 'replayAgentExecution']);
         Route::get('agent-replays/{id}', [KnowledgeController::class, 'agentReplay']);
     });
+
+    Route::middleware(['auth:sanctum', 'throttle:knowledge-feedback'])
+        ->post('answers/feedback', [AiAnswerFeedbackController::class, 'store']);
 });

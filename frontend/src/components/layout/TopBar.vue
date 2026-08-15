@@ -4,7 +4,14 @@
       Holy Bible Study Platform
     </h1>
 
-    <div class="grid gap-2 sm:grid-cols-3">
+    <div class="flex flex-wrap items-end gap-2">
+      <NuxtLink
+        to="/ask"
+        class="soft-ring inline-flex h-10 items-center rounded-xl border border-[var(--stroke)] bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+      >
+        Ask AI
+      </NuxtLink>
+
       <label class="min-w-[220px]">
         <span class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Book</span>
         <select

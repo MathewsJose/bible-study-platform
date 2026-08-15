@@ -21,6 +21,15 @@ export function getApiBaseUrl() {
   return process.env.NUXT_PUBLIC_API_BASE_URL || process.env.VITE_API_BASE_URL || '';
 }
 
+function errorMessage(error) {
+  return (
+    error?.data?.message ||
+    error?.statusMessage ||
+    error?.message ||
+    'Unexpected API error'
+  );
+}
+
 export async function apiGet(path, params) {
   try {
     const response = await $fetch(path, {
@@ -31,12 +40,22 @@ export async function apiGet(path, params) {
 
     return normalizeApiPayload(response);
   } catch (error) {
-    const message =
-      error?.data?.message ||
-      error?.statusMessage ||
-      error?.message ||
-      'Unexpected API error';
+    throw new Error(errorMessage(error));
+  }
+}
 
-    throw new Error(message);
+export async function apiPost(path, payload, options = {}) {
+  try {
+    const response = await $fetch(path, {
+      baseURL: getApiBaseUrl() || undefined,
+      method: 'POST',
+      body: payload,
+      headers: options.headers,
+      timeout: options.timeout ?? 20000,
+    });
+
+    return normalizeApiPayload(response);
+  } catch (error) {
+    throw new Error(errorMessage(error));
   }
 }

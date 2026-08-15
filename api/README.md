@@ -536,6 +536,27 @@ php artisan ai:model:compare --models=null:null-answer-model,null:null-answer-mo
 
 External providers require Knowledge Service configuration and must pass `AI_ALLOW_EXTERNAL_PROCESSING`. PII handling, prompt-injection checks, and provider policy are enforced before provider calls. Provider availability depends on local endpoints or credentials; the application does not claim GDPR compliance or EU residency from provider routing alone.
 
+## Private Alpha Feedback
+
+The Core API owns the public Private Alpha feedback endpoint:
+
+```http
+POST /v1/knowledge/answers/feedback
+```
+
+This route is authenticated with Sanctum and rate-limited separately by `KNOWLEDGE_FEEDBACK_RATE_LIMIT_PER_MINUTE`. It accepts the safe answer `request_id`, `rating` (`helpful` or `not_helpful`), optional negative `reason`, and safe telemetry such as provider/model, retrieval strategy, source count, citation count, and latency when the frontend has those values.
+
+Feedback is stored in `ai_answer_feedback`. Duplicate feedback from the same user for the same `request_id` updates the existing row. The table intentionally avoids storing full prompts or full answers. Optional comments are supported by the schema but are not stored unless `KNOWLEDGE_FEEDBACK_STORE_COMMENTS=true`; leave this disabled during early alpha unless a privacy policy and retention process are in place.
+
+Diagnostic command:
+
+```bash
+php artisan ai:feedback:health --days=30
+php artisan ai:feedback:health --format=json
+```
+
+The command prints aggregate counts and top negative reasons only; it does not print personal comments.
+
 ## Knowledge Service Evaluation
 
 Production AI evaluation belongs to the `knowledge_documents` service. The Core API does not proxy evaluation mutation endpoints to frontend clients.

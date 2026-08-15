@@ -53,5 +53,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute((int) config('knowledge_service.ai_rate_limit_per_minute', 10))
                 ->by($request->user()?->id ?: $request->ip());
         });
+
+        RateLimiter::for('knowledge-feedback', function (Request $request) {
+            return Limit::perMinute((int) config('knowledge_service.feedback_rate_limit_per_minute', 30))
+                ->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

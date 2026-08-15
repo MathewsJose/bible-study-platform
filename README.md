@@ -108,6 +108,30 @@ Core API / frontend
 
 Local development uses the deterministic `null` provider by default and can point at an OpenAI-compatible local endpoint with `LLM_LOCAL_BASE_URL`. External providers are blocked unless `AI_ALLOW_EXTERNAL_PROCESSING=true` and credentials are configured. Provider selection is a technical control, not a GDPR or EU-residency claim.
 
+### Private Alpha Question & Feedback Loop
+
+Sprint 23 adds a small Private Alpha flow for real-user testing without changing the retrieval, answer, security, or LLM gateway architecture:
+
+```text
+frontend /ask
+  -> Core API POST /v1/knowledge/answer
+  -> Knowledge Service AI Answer
+  -> LLM Gateway
+  -> cited sources
+  -> Core API POST /v1/knowledge/answers/feedback
+```
+
+The frontend calls only the Core API. Users can ask a Catholic/Bible study question, inspect returned Bible/Catechism/Church Father sources, open citations through `GET /v1/knowledge/reference/{reference}`, and submit Helpful / Not helpful feedback. Feedback is stored in the Core API as aggregate product evidence tied to the safe `request_id`; it does not duplicate full prompts or answers. Optional comments are not stored by default (`KNOWLEDGE_FEEDBACK_STORE_COMMENTS=false`) to avoid collecting unnecessary personal data during alpha testing.
+
+Useful Core API diagnostics:
+
+```bash
+cd api
+php artisan ai:feedback:health
+```
+
+AI-generated answers are supported by retrieved sources but may still contain errors. Users should verify important theological conclusions against the cited sources and Church teaching. Automated evaluation remains an engineering signal; user feedback is complementary real-world product evidence.
+
 This architecture makes the backend easier to reason about, test, and extend:
 
 - domain rules live in the Domain layer, not in controllers

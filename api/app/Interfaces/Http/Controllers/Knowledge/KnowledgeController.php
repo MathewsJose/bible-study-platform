@@ -98,7 +98,10 @@ final class KnowledgeController extends Controller
             return ApiResponse::error('Invalid knowledge answer request.', 400, $validator->errors());
         }
 
-        return $this->respond(fn () => $this->knowledge->answer($validator->validated(), $this->requestId($request)));
+        return $this->respond(
+            fn () => $this->knowledge->answer($validator->validated(), $this->requestId($request)),
+            'Sorry, I couldn\'t generate an answer right now. Please try again.',
+        );
     }
 
     public function agent(Request $request): JsonResponse
@@ -145,15 +148,17 @@ final class KnowledgeController extends Controller
         return $this->respond(fn () => $this->knowledge->agentReplay($id, $this->requestId($request)));
     }
 
-    private function respond(callable $operation): JsonResponse
+    private function respond(callable $operation, ?string $serviceFailureMessage = null): JsonResponse
     {
         try {
             return ApiResponse::success($operation()->toArray());
         } catch (KnowledgeServiceException $exception) {
+            $status = $this->publicStatus($exception->statusCode);
+
             return ApiResponse::error(
-                message: $exception->getMessage(),
-                status: $this->publicStatus($exception->statusCode),
-                errors: $exception->errors,
+                message: $status >= 500 && $serviceFailureMessage !== null ? $serviceFailureMessage : $exception->getMessage(),
+                status: $status,
+                errors: $status >= 500 && $serviceFailureMessage !== null ? [] : $exception->errors,
             );
         }
     }

@@ -910,6 +910,39 @@ php artisan ai:model:compare --models=local:local-model,openai:gpt-4o-mini --typ
 
 External model comparisons require credentials and must pass `AI_ALLOW_EXTERNAL_PROCESSING`.
 
+## Private Alpha Feedback Loop
+
+The Private Alpha user flow stays behind the Core API boundary:
+
+```text
+Nuxt /ask
+  -> Core API /v1/knowledge/answer
+  -> Knowledge Service /api/v1/knowledge/answer
+  -> AI Answer Service
+  -> LLM Gateway
+  -> Core API /v1/knowledge/answers/feedback
+```
+
+The frontend displays the answer, returned citations, supporting Bible/Catechism/Church Father sources, and citation-opening through `GET /v1/knowledge/reference/{reference}`. It never calls the Knowledge Service directly.
+
+Core API feedback stores:
+
+- authenticated `user_id`
+- answer `request_id`
+- Helpful / Not helpful rating
+- optional negative reason
+- safe provider/model/retrieval/source/citation telemetry when available
+
+It does not store full prompts or full answers. Optional comments are not persisted by default; keep `KNOWLEDGE_FEEDBACK_STORE_COMMENTS=false` unless a privacy and retention policy is ready.
+
+Useful Core API command:
+
+```bash
+php artisan ai:feedback:health
+```
+
+Automated evaluation remains deterministic engineering evidence. User feedback is real-world alpha evidence. Neither alone proves theological correctness, and users should verify important conclusions against cited sources and Church teaching.
+
 API:
 
 ```http

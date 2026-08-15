@@ -17,6 +17,7 @@ import {
   getSampleTeachingsData,
 } from '../src/services/sampleData.js';
 import { normalizeApiPayload } from '../src/services/apiContract.js';
+import { normalizeAnswerEnvelope, sourceTypeLabel } from '../src/services/knowledgeAlphaContract.js';
 
 const tests = [];
 
@@ -223,6 +224,32 @@ test('api payload normalization unwraps the Laravel envelope in one place', () =
   }), {
     items: ['Historical note'],
   });
+});
+
+test('alpha answer normalization unwraps core api knowledge answer payloads', () => {
+  const normalized = normalizeAnswerEnvelope({
+    request_id: 'request-1',
+    data: {
+      answer: 'The Word became flesh [1].',
+      supporting_documents: [{ reference: 'CCC 456', source_type: 'catechism' }],
+      citations: [{ reference: 'CCC 456' }],
+      provider: 'null',
+      model: 'null-answer-model',
+    },
+  });
+
+  assert.equal(normalized.requestId, 'request-1');
+  assert.equal(normalized.answer, 'The Word became flesh [1].');
+  assert.equal(normalized.sources[0].reference, 'CCC 456');
+  assert.equal(normalized.citations.length, 1);
+  assert.equal(normalized.provider, 'null');
+});
+
+test('alpha source labels keep source authority visible', () => {
+  assert.equal(sourceTypeLabel('bible_verse'), 'Bible');
+  assert.equal(sourceTypeLabel('catechism'), 'Catechism');
+  assert.equal(sourceTypeLabel('church_father'), 'Church Father');
+  assert.equal(sourceTypeLabel('unknown'), 'Source');
 });
 
 let failures = 0;
