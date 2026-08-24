@@ -104,9 +104,11 @@ abstract class AbstractFileKnowledgeImporter implements KnowledgeImporterInterfa
      */
     protected function provenance(RawKnowledgeDocument $rawDocument, array $metadata = []): array
     {
-        return array_filter(array_merge($metadata, [
-            'source_identifier' => $this->identifier(),
-            'source_version' => $this->version(),
+        return array_filter(array_merge([
+            'source_identifier' => $rawDocument->metadata['source_identifier'] ?? $this->identifier(),
+            'source_version' => $rawDocument->metadata['source_version'] ?? $this->version(),
+            'source_type' => $rawDocument->metadata['source_type'] ?? $this->identifier(),
+            'source_name' => $rawDocument->metadata['source_name'] ?? null,
             'source_path' => basename($rawDocument->path),
             'source_url' => $rawDocument->metadata['source_url'] ?? null,
             'imported_at' => date(DATE_ATOM, filemtime($rawDocument->path) ?: time()),
@@ -114,7 +116,14 @@ abstract class AbstractFileKnowledgeImporter implements KnowledgeImporterInterfa
             'license' => $rawDocument->metadata['license'] ?? $this->licensing()['license'],
             'license_url' => $rawDocument->metadata['license_url'] ?? $this->licensing()['license_url'],
             'rights_notes' => $rawDocument->metadata['rights_notes'] ?? $this->licensing()['rights_notes'],
-        ]), static fn (mixed $value): bool => $value !== null && $value !== '');
+            'copyright_status' => $rawDocument->metadata['copyright_status'] ?? 'requires_verification',
+            'author' => $rawDocument->metadata['author'] ?? null,
+            'title' => $rawDocument->metadata['title'] ?? null,
+            'work' => $rawDocument->metadata['work'] ?? null,
+            'reference' => $rawDocument->metadata['reference'] ?? null,
+            'edition' => $rawDocument->metadata['edition'] ?? $rawDocument->metadata['source_edition'] ?? null,
+            'publication' => $rawDocument->metadata['publication'] ?? null,
+        ], $metadata), static fn (mixed $value): bool => $value !== null && $value !== '');
     }
 
     protected function language(RawKnowledgeDocument $rawDocument): string

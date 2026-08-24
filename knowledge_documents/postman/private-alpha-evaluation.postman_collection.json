@@ -1,0 +1,460 @@
+{
+  "info": {
+    "_postman_id": "08b86f5f-50f7-4f8e-8713-private-alpha",
+    "name": "Bible Study Platform - Private Alpha Evaluation",
+    "description": "Manual Private Alpha requests for Core API answer testing, citation navigation, feedback capture, and direct Knowledge Service retrieval checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "core_api_url",
+      "value": "http://localhost"
+    },
+    {
+      "key": "knowledge_service_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "auth_token",
+      "value": "PASTE_SANCTUM_TOKEN_HERE"
+    },
+    {
+      "key": "request_id",
+      "value": "manual-alpha-001"
+    },
+    {
+      "key": "reference",
+      "value": "CCC 456"
+    }
+  ],
+  "item": [
+    {
+      "name": "Core API - AI Answer",
+      "item": [
+        {
+          "name": "Ask - Why Did Jesus Become Man",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "{{request_id}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Why did Jesus become man?\",\n  \"filters\": {\n    \"source_types\": [\"bible_verse\", \"catechism\", \"church_father\"],\n    \"tradition\": \"catholic\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/answer",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "answer"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ask - What Does John 1:14 Mean",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "manual-alpha-002"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What does John 1:14 mean?\",\n  \"filters\": {\n    \"source_types\": [\"bible_verse\", \"catechism\", \"church_father\"],\n    \"tradition\": \"catholic\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/answer",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "answer"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ask - What Is Grace",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "manual-alpha-003"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What does the Catholic Church teach about grace?\",\n  \"filters\": {\n    \"source_types\": [\"bible_verse\", \"catechism\", \"church_father\"],\n    \"tradition\": \"catholic\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/answer",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "answer"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ask - What Is The Trinity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "manual-alpha-004"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is the Trinity?\",\n  \"filters\": {\n    \"source_types\": [\"bible_verse\", \"catechism\", \"church_father\"],\n    \"tradition\": \"catholic\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/answer",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "answer"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ask - What Is The Eucharist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "manual-alpha-005"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is the Eucharist?\",\n  \"filters\": {\n    \"source_types\": [\"bible_verse\", \"catechism\", \"church_father\"],\n    \"tradition\": \"catholic\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/answer",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "answer"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Core API - Source Navigation",
+      "item": [
+        {
+          "name": "Open Citation - CCC 456",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/reference/CCC%20456",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "reference",
+                "CCC%20456"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Open Citation - John 1:14",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/reference/John%201%3A14",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "reference",
+                "John%201%3A14"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Core API - Feedback",
+      "item": [
+        {
+          "name": "Submit Helpful Feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_id\": \"{{request_id}}\",\n  \"rating\": \"helpful\",\n  \"source_count\": 8,\n  \"citation_count\": 8,\n  \"client_surface\": \"postman\"\n}"
+            },
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/answers/feedback",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "answers",
+                "feedback"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Not Helpful Feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_id\": \"{{request_id}}\",\n  \"rating\": \"not_helpful\",\n  \"reason\": \"missing_information\",\n  \"comment\": \"The answer needs more source detail.\",\n  \"source_count\": 8,\n  \"citation_count\": 8,\n  \"client_surface\": \"postman\"\n}"
+            },
+            "url": {
+              "raw": "{{core_api_url}}/v1/knowledge/answers/feedback",
+              "host": [
+                "{{core_api_url}}"
+              ],
+              "path": [
+                "v1",
+                "knowledge",
+                "answers",
+                "feedback"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Knowledge Service - Direct Retrieval Checks",
+      "item": [
+        {
+          "name": "Semantic Search - Incarnation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Why did Jesus become man?\",\n  \"top_k\": 10,\n  \"minimum_score\": 0.1,\n  \"source_types\": [\"catechism\", \"bible_verse\"],\n  \"tradition\": \"catholic\"\n}"
+            },
+            "url": {
+              "raw": "{{knowledge_service_url}}/api/documents/semantic-search",
+              "host": [
+                "{{knowledge_service_url}}"
+              ],
+              "path": [
+                "api",
+                "documents",
+                "semantic-search"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Full Text Search - God Loved The World",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"God loved the world\",\n  \"limit\": 5,\n  \"source_type\": \"bible_verse\",\n  \"book\": \"John\",\n  \"chapter\": 3\n}"
+            },
+            "url": {
+              "raw": "{{knowledge_service_url}}/api/documents/search",
+              "host": [
+                "{{knowledge_service_url}}"
+              ],
+              "path": [
+                "api",
+                "documents",
+                "search"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Hybrid Search - Incarnation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"What sources explain the Word became flesh?\",\n  \"top_k\": 10,\n  \"source_types\": [\"bible_verse\", \"catechism\", \"church_father\"],\n  \"tradition\": \"catholic\"\n}"
+            },
+            "url": {
+              "raw": "{{knowledge_service_url}}/api/documents/hybrid-search",
+              "host": [
+                "{{knowledge_service_url}}"
+              ],
+              "path": [
+                "api",
+                "documents",
+                "hybrid-search"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

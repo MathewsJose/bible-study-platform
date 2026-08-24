@@ -17,11 +17,12 @@ final readonly class ImportPipeline
     public function __construct(
         private KnowledgeDocumentPersistenceService $persistence,
         private EmbeddingGenerationService $embeddings,
+        private ProvenanceGate $provenanceGate,
     ) {}
 
     /**
      * @param  array<string, mixed>  $metadata
-     * @param  array{force?: bool, skip_unchanged?: bool, queue_embeddings?: bool}  $options
+     * @param  array{force?: bool, skip_unchanged?: bool, queue_embeddings?: bool, source_id?: string|null, allow_unverified_source?: bool}  $options
      */
     public function import(KnowledgeImporterInterface $importer, string $path, array $metadata = [], array $options = []): ImportPipelineResult
     {
@@ -30,6 +31,29 @@ final readonly class ImportPipeline
         $skipUnchanged = (bool) ($options['skip_unchanged'] ?? true);
         $queueEmbeddings = (bool) ($options['queue_embeddings'] ?? true);
         $checksum = hash_file('sha256', $path) ?: '';
+        $gate = $this->provenanceGate->evaluate(
+            importer: $importer,
+            sourceId: isset($options['source_id']) ? (string) $options['source_id'] : null,
+            metadata: $metadata,
+            allowUnsafeOverride: (bool) ($options['allow_unverified_source'] ?? false),
+        );
+
+        if (! $gate->allowed) {
+            Log::warning('Knowledge import blocked by provenance gate.', [
+                'source' => $importer->identifier(),
+                'path' => $path,
+                'errors' => $gate->errors,
+                'warnings' => $gate->warnings,
+            ]);
+
+            return new ImportPipelineResult(
+                failed: 1,
+                durationSeconds: $this->duration($started),
+                errors: $gate->errors,
+            );
+        }
+
+        $metadata = array_merge($metadata, $gate->provenance?->toMetadata() ?? []);
 
         if ($skipUnchanged && ! $force && $this->alreadyImported($importer, $path, $checksum)) {
             Log::info('Knowledge import skipped unchanged source file.', [
@@ -71,6 +95,8 @@ final readonly class ImportPipeline
             $importResult = $persistence['result'];
             /** @var list<string> $changedDocumentIds */
             $changedDocumentIds = $persistence['changed_document_ids'];
+            /** @var list<string> $errors */
+            $errors = $persistence['errors'];
 
             $embeddingsQueued = 0;
             if ($queueEmbeddings && $changedDocumentIds !== []) {
@@ -78,7 +104,7 @@ final readonly class ImportPipeline
                 $embeddingsQueued = $dispatch->documentsQueued;
             }
 
-            $this->finishManifest($manifest, $importResult);
+            $this->finishManifest($manifest, $importResult, $errors);
 
             $result = new ImportPipelineResult(
                 created: $importResult->created,
@@ -87,6 +113,7 @@ final readonly class ImportPipeline
                 failed: $importResult->failures,
                 embeddingsQueued: $embeddingsQueued,
                 durationSeconds: $this->duration($started),
+                errors: $errors,
             );
 
             Log::info('Knowledge import completed.', [
@@ -155,16 +182,20 @@ final readonly class ImportPipeline
         ], []));
     }
 
-    private function finishManifest(ImportManifest $manifest, ImportResult $result): void
+    /**
+     * @param  list<string>  $errors
+     */
+    private function finishManifest(ImportManifest $manifest, ImportResult $result, array $errors = []): void
     {
         $manifest->update([
-            'status' => 'completed',
+            'status' => $result->failures === 0 ? 'completed' : 'failed',
             'finished_at' => now(),
             'total_records' => $result->total(),
             'records_created' => $result->created,
             'records_updated' => $result->updated,
             'records_skipped' => $result->skipped,
             'records_failed' => $result->failures,
+            'error_message' => $errors === [] ? null : implode("\n", array_slice($errors, 0, 20)),
         ]);
     }
 

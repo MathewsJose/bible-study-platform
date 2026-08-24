@@ -23,6 +23,9 @@ final class KnowledgeImportCommand extends Command
                             {--license= : The license of the data}
                             {--license-url= : The URL to the license text}
                             {--rights-notes= : Additional rights or copyright notes}
+                            {--source-id= : Source inventory identifier to use for provenance gating}
+                            {--copyright-status= : Explicit copyright status metadata}
+                            {--allow-unverified-source : UNSAFE development-only override when enabled by configuration}
                             {--language=en : The language of the documents}
                             {--book= : Import only one Bible book}
                             {--chapter= : Import only one Bible chapter}
@@ -53,6 +56,8 @@ final class KnowledgeImportCommand extends Command
             'license' => $this->option('license'),
             'license_url' => $this->option('license-url'),
             'rights_notes' => $this->option('rights-notes'),
+            'source_identifier' => $this->option('source-id'),
+            'copyright_status' => $this->option('copyright-status'),
             'language' => $this->option('language'),
             'book' => $this->option('book'),
             'chapter' => $this->option('chapter'),
@@ -88,6 +93,8 @@ final class KnowledgeImportCommand extends Command
                 'skip_unchanged' => ! $this->hasDocumentFilters($metadata),
                 'force' => (bool) $this->option('force'),
                 'queue_embeddings' => ! (bool) $this->option('no-embeddings'),
+                'source_id' => $this->option('source-id'),
+                'allow_unverified_source' => (bool) $this->option('allow-unverified-source'),
             ]);
 
             $imported += $result->created;

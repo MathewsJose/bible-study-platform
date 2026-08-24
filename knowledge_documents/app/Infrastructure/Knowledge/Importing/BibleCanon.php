@@ -119,6 +119,25 @@ final class BibleCanon
         return ($this->bookOrder($book) * 1_000_000) + ($chapter * 1_000) + $verse;
     }
 
+    /**
+     * @return list<string>
+     */
+    public function books(): array
+    {
+        return array_map(
+            static fn (string $book): string => Str::of($book)->headline()->replace(' Of ', ' of ')->toString(),
+            array_keys(self::BOOKS),
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function deuterocanonicalBooks(): array
+    {
+        return ['Tobit', 'Judith', 'Wisdom', 'Sirach', 'Baruch', '1 Maccabees', '2 Maccabees'];
+    }
+
     private function key(string $book): string
     {
         return Str::of($book)->lower()->replaceMatches('/\s+/', ' ')->trim()->toString();

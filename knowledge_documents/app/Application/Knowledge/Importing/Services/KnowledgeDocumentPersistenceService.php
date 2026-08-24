@@ -17,7 +17,7 @@ final readonly class KnowledgeDocumentPersistenceService
 
     /**
      * @param  list<NormalizedKnowledgeDocument>  $documents
-     * @return array{result: ImportResult, changed_document_ids: list<string>}
+     * @return array{result: ImportResult, changed_document_ids: list<string>, errors: list<string>}
      */
     public function persist(array $documents): array
     {
@@ -26,6 +26,7 @@ final readonly class KnowledgeDocumentPersistenceService
         $skipped = 0;
         $failures = 0;
         $changedDocumentIds = [];
+        $errors = [];
 
         foreach ($documents as $document) {
             try {
@@ -49,14 +50,22 @@ final readonly class KnowledgeDocumentPersistenceService
                         DocumentImported::dispatch($record->id);
                     }
                 }
-            } catch (\Throwable) {
+            } catch (\Throwable $exception) {
                 $failures++;
+                $errors[] = implode(' | ', [
+                    "source_type={$document->sourceType}",
+                    "source_name={$document->sourceName}",
+                    "reference={$document->reference}",
+                    'category=persistence_failure',
+                    'error='.$exception->getMessage(),
+                ]);
             }
         }
 
         return [
             'result' => new ImportResult($created, $updated, $skipped, $failures),
             'changed_document_ids' => array_values(array_unique($changedDocumentIds)),
+            'errors' => $errors,
         ];
     }
 }

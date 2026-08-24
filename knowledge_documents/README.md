@@ -1574,45 +1574,137 @@ Core classes:
 - `DocumentNormalizerInterface`: converts raw source files to normalized DTOs.
 - `ImportValidatorInterface`: validates source payloads before persistence.
 - `KnowledgeSourceRegistry`: registers, lists, resolves, and duplicate-checks importers.
+- `SourceInventory`: reads configured candidate sources before they are imported.
+- `ProvenanceGate`: blocks imports whose source provenance is missing, unverified, restricted, or ambiguous.
 - `ImportPipeline`: orchestrates fetch, normalize, validate, persist, embedding dispatch, structured logging, and report generation.
 - `KnowledgeDocumentPersistenceService`: the only import framework class that writes `knowledge_documents`.
-- DTOs: `RawKnowledgeDocument`, `NormalizedKnowledgeDocument`, `ValidationResult`, and `ImportPipelineResult`.
+- DTOs: `RawKnowledgeDocument`, `NormalizedKnowledgeDocument`, `SourceInventoryItem`, `SourceProvenance`, `ProvenanceGateResult`, `ValidationResult`, and `ImportPipelineResult`.
+
+### Source Provenance And Licensing Gate
+
+Imports now pass through a read-only provenance gate before any file is fetched, normalized, persisted, or embedded. This is an engineering safeguard, not legal advice. Online availability does not imply redistribution rights.
+
+Candidate sources are configured in `config/knowledge_sources.php`. Default real-world candidates are intentionally marked `requires_verification` and `import_allowed=false` until a human verifies the source, edition, license, and redistribution terms.
+
+The gate uses these explicit copyright statuses:
+
+- `verified`
+- `public_domain`
+- `licensed`
+- `permission_required`
+- `requires_verification`
+- `restricted`
+- `unknown`
+
+Only `verified`, `public_domain`, and `licensed` can pass the gate, and only when the source inventory entry is also `verification_status=approved` and `import_allowed=true`. Missing license information is never inferred. If provenance is unavailable, use `copyright_status=requires_verification`, `license=null`, and rights notes that explain manual verification is required.
+
+Source inventory entries support:
+
+- `id`
+- `type`
+- `name`
+- `author`
+- `work`
+- `title`
+- `language`
+- `edition`
+- `source_version`
+- `source_url`
+- `license_url`
+- `license`
+- `copyright_status`
+- `verification_status`
+- `rights_notes`
+- `expected_document_count`
+- `expected_references`
+- `import_allowed`
+
+Example future source inventory shape:
+
+```php
+[
+    'id' => 'bible.douay_rheims',
+    'type' => 'bible',
+    'name' => 'Douay-Rheims Bible',
+    'language' => 'en',
+    'edition' => 'Verified edition label',
+    'source_url' => 'https://example.test/source',
+    'license_url' => 'https://example.test/license',
+    'license' => 'Verified license label',
+    'copyright_status' => 'public_domain',
+    'verification_status' => 'approved',
+    'rights_notes' => 'Human-reviewed provenance notes.',
+    'import_allowed' => true,
+]
+```
 
 Provenance is stored in each document's `metadata` without changing the `knowledge_documents` schema:
 
 - `source_identifier`
 - `source_version`
+- `source_type`
+- `source_name`
 - `source_path`
+- `source_url`
 - `source_checksum`
 - `content_checksum`
 - `imported_at`
+- `author`
+- `title`
+- `work`
+- `reference`
 - `language`
+- `edition`
+- `publication`
 - `license`
 - `license_url`
 - `rights_notes`
+- `copyright_status`
+
+The existing document uniqueness remains unchanged:
+
+```text
+source_type + source_name + reference
+```
+
+Multiple Bible translations and editions should be represented through distinct source inventory IDs, source names, translations, editions, and provenance metadata. The current schema supports this without changing API contracts, but source/reference resolution can become ambiguous if multiple editions use the same `reference`; verify this before importing more than one translation.
+
+Current importers read files into memory. This is acceptable for small verified batches and fixtures, but full Bible, CCC, and large Church Father corpora should be imported through pre-split files or a future streaming import sprint.
+
+Production import readiness checks are deliberately separate from import execution. They do not persist documents, queue embeddings, or approve licensing.
 
 CLI usage:
 
 ```bash
 php artisan knowledge:sources
+php artisan knowledge:bible-audit
+php artisan knowledge:bible-audit --format=json
+php artisan knowledge:duplicates --source-type=bible_verse
 php artisan knowledge:import all --skip-unchanged
-php artisan knowledge:import bible --skip-unchanged
-php artisan knowledge:import catechism --force
-php artisan knowledge:import church_fathers --no-embeddings
+php artisan knowledge:import bible --source-id=bible.douay_rheims --skip-unchanged
+php artisan knowledge:import catechism --source-id=catechism.ccc --force
+php artisan knowledge:import church_fathers --source-id=church_fathers.public_domain_candidate --no-embeddings
 php artisan knowledge:verify
+php artisan knowledge:verify --format=json
 php artisan knowledge:status
 ```
+
+`php artisan knowledge:import` refuses unsafe imports by default. The `--force` option only bypasses unchanged-file skipping; it does not bypass provenance checks. A deliberately named `--allow-unverified-source` option exists for development-only workflows and only works when `KNOWLEDGE_PROVENANCE_ALLOW_UNVERIFIED_OVERRIDE=true`.
 
 The legacy `php artisan knowledge` alias still imports all configured directories. Import directories are configured with:
 
 ```env
 KNOWLEDGE_IMPORT_DIRECTORIES=storage/app/imports
+KNOWLEDGE_PROVENANCE_GATE_ENABLED=true
+KNOWLEDGE_PROVENANCE_ALLOW_UNVERIFIED_OVERRIDE=false
 ```
 
 Docker manual verification:
 
 ```bash
 docker compose exec app php artisan knowledge:sources
+docker compose exec app php artisan knowledge:bible-audit
+docker compose exec app php artisan knowledge:duplicates --source-type=bible_verse
 docker compose exec app php artisan knowledge:import all --skip-unchanged
 docker compose exec app php artisan knowledge:verify
 docker compose exec app php artisan knowledge:status
@@ -1692,6 +1784,43 @@ Verse metadata includes:
 - `cross_references`
 
 Chapter metadata includes the same source and canonical fields plus `verse_count`, ordered `verses`, and aggregated supplied `cross_references`.
+
+### Full Catholic Bible Readiness
+
+Before importing a full Bible corpus, run the audit command against the configured import directories or explicit source files:
+
+```bash
+php artisan knowledge:bible-audit
+php artisan knowledge:bible-audit --path=storage/app/imports/sources/bible/douay-rheims/john.json --format=json
+```
+
+The audit verifies readiness without importing data. It reports:
+
+- number of files, books, chapters, and verses found
+- expected Catholic 73-book canon coverage
+- missing deuterocanonical books
+- unexpected book names
+- duplicate references within a source file
+- duplicate references across files
+- malformed references
+- invalid chapter or verse numbers
+- empty, suspiciously short, and suspiciously long verse text
+- invalid canonical ordering
+- missing source identity fields such as translation, language, source URL, license URL, and edition
+- provenance gate status
+
+`import_ready` is `true` only when the source passes the provenance gate and appears to contain the complete Catholic canon. A partial source can still be useful for development fixtures, but it should not be treated as the full Catholic Bible corpus.
+
+Large Bible corpora should be prepared as split JSON files by book, chapter, or another manageable source unit. The readiness audit processes each file independently so a future verified corpus can be checked incrementally without requiring a single monolithic file. The current importer pipeline is resumable and idempotent through checksums: unchanged documents are skipped, changed documents are persisted with embedding status reset to `pending`, and `--no-embeddings` keeps import validation separate from embedding generation.
+
+Use duplicate diagnostics before and after any approved corpus import:
+
+```bash
+php artisan knowledge:duplicates --source-type=bible_verse
+php artisan knowledge:duplicates --source-type=bible_verse --format=json
+```
+
+Duplicates with the same `source_type + source_name + reference` are accidental duplicates and should be fixed at the source. The same plain reference across different source names can be legitimate when multiple translations or editions are imported, but downstream reference lookup must remain clear about which source is being returned.
 
 Bible CLI examples:
 
