@@ -8,6 +8,7 @@ return [
     ],
     'import' => [
         'directories' => array_filter(array_map('trim', explode(',', env('KNOWLEDGE_IMPORT_DIRECTORIES', 'storage/app/imports')))),
+        'excluded_directories' => array_filter(array_map('trim', explode(',', env('KNOWLEDGE_IMPORT_EXCLUDED_DIRECTORIES', 'storage/app/imports/staging')))),
         'sources' => [
             App\Infrastructure\Knowledge\Importing\BibleKnowledgeImporter::class,
             App\Infrastructure\Knowledge\Importing\CatechismKnowledgeImporter::class,

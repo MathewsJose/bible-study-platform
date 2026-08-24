@@ -143,6 +143,10 @@ final class KnowledgeImportCommand extends Command
             $finder->files()->in($resolved)->name(['*.json', '*.txt', '*.md'])->sortByName();
 
             foreach ($finder as $file) {
+                if ($this->isExcludedPath($file->getRealPath() ?: $file->getPathname())) {
+                    continue;
+                }
+
                 $files->push($file);
             }
         }
@@ -162,6 +166,30 @@ final class KnowledgeImportCommand extends Command
         }
 
         return base_path($directory);
+    }
+
+    private function isExcludedPath(string $path): bool
+    {
+        $path = $this->normalizePath($path);
+
+        foreach ((array) config('knowledge.import.excluded_directories', []) as $directory) {
+            $resolved = $this->resolveDirectory((string) $directory);
+            if ($resolved === null) {
+                continue;
+            }
+
+            $excluded = rtrim($this->normalizePath($resolved), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+            if (str_starts_with($path, $excluded)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizePath(string $path): string
+    {
+        return str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
     }
 
     private function resolveImporter(string $source, string $path): ?KnowledgeImporterInterface

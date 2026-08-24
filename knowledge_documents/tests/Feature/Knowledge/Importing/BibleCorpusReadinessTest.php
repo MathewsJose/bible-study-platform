@@ -221,8 +221,11 @@ it('validates the candidate source manifest remains non approved', function (): 
         ->and($manifest['license'])->toContain('CC0')
         ->and($manifest['verification_status'])->toBe('requires_verification')
         ->and($manifest['import_allowed'])->toBeFalse()
-        ->and($manifest['checksum'])->toBeNull()
-        ->and($manifest['content_checksum'])->toBeNull();
+        ->and($manifest['copyright_status'])->toBe('requires_verification')
+        ->and($manifest['repository_commit'])->toBe('0bf4218b9b46b5b00d29a703b5b74226051b97a5')
+        ->and($manifest['checksum'])->toBe('f72f81c450096401b59d3f7d08bee054690411b5d18f0e922223d6192fee14e4')
+        ->and($manifest['content_checksum'])->toBe('864d1e7aeb06f855d64124ae8353aa62184276f28349a0b0fe759c19df306738')
+        ->and($manifest['candidate_status'])->toBe('technically_staged_requires_provenance_verification');
 });
 
 it('reports catholic canon gaps unexpected books invalid references and source identity gaps', function (): void {

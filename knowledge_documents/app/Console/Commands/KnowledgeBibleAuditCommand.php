@@ -236,6 +236,10 @@ final class KnowledgeBibleAuditCommand extends Command
 
             foreach ($finder as $file) {
                 $path = $file->getRealPath();
+                if ($path !== false && $this->isExcludedPath($path)) {
+                    continue;
+                }
+
                 if ($path !== false && $importer->supports($path)) {
                     $files->push($path);
                 }
@@ -245,6 +249,22 @@ final class KnowledgeBibleAuditCommand extends Command
         return $files->values()->all();
     }
 
+    private function isExcludedPath(string $path): bool
+    {
+        $path = $this->normalizePath($path);
+
+        foreach ((array) config('knowledge.import.excluded_directories', []) as $directory) {
+            $resolved = $this->resolvePath((string) $directory);
+            $excluded = rtrim($this->normalizePath($resolved), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+
+            if (str_starts_with($path, $excluded)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function resolvePath(string $path): string
     {
         if (str_starts_with($path, DIRECTORY_SEPARATOR) || preg_match('/^[A-Z]:[\\\\\/]/i', $path) === 1) {
@@ -252,5 +272,10 @@ final class KnowledgeBibleAuditCommand extends Command
         }
 
         return base_path($path);
+    }
+
+    private function normalizePath(string $path): string
+    {
+        return str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
     }
 }

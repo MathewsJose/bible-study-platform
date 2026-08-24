@@ -8,10 +8,10 @@
   "download_page_url": "https://thedouayrheims.com/download",
   "license": "CC0 1.0 Universal public domain dedication claimed by source publisher",
   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "copyright_status": "public_domain",
+  "copyright_status": "requires_verification",
   "verification_status": "requires_verification",
   "import_allowed": false,
-  "rights_notes": "Non-approved candidate manifest only. The source website and repository claim the complete Original Douay-Rheims Bible and CC0/public-domain release. Before import, manually verify the repository owner, exact source commit, transcription provenance, source PDFs, license continuity across all files, and redistribution suitability.",
+  "rights_notes": "Non-approved candidate manifest only. The source website and repository claim the complete Original Douay-Rheims Bible and CC0/public-domain release. Before import, manually verify the repository owner, exact source commit, transcription provenance, source PDFs, license continuity across all files, and redistribution suitability. Technical staging excludes non-canonical extra source books and a Tobias chapter 0 prologue from normalized Bible chapter data.",
   "expected_books": 73,
   "expected_deuterocanonical_books": [
     "Tobit",
@@ -23,12 +23,29 @@
     "2 Maccabees"
   ],
   "format": "book-level JSON files under bible/raw/ or bible/tagged/; one file per book with book, book_title, short_title, chapters, verses, notes, and optional cross_refs",
-  "checksum": null,
-  "content_checksum": null,
-  "source_version": "not pinned; pin to an exact Git commit before import",
-  "candidate_status": "requires_verification",
-  "acquisition_status": "not_downloaded",
-  "structural_audit_status": "not_run_against_source_files",
+  "checksum": "f72f81c450096401b59d3f7d08bee054690411b5d18f0e922223d6192fee14e4",
+  "content_checksum": "864d1e7aeb06f855d64124ae8353aa62184276f28349a0b0fe759c19df306738",
+  "source_version": "git:0bf4218b9b46b5b00d29a703b5b74226051b97a5",
+  "repository_commit": "0bf4218b9b46b5b00d29a703b5b74226051b97a5",
+  "candidate_status": "technically_staged_requires_provenance_verification",
+  "acquisition_status": "staged_locally",
+  "structural_audit_status": "passed_after_normalizing_canonical_73_books",
+  "staged_books": 73,
+  "staged_chapters": 1334,
+  "staged_verses": 35809,
+  "extra_source_books_excluded": [
+    "3-esdras",
+    "4-esdras",
+    "prayer-of-manasseh",
+    "prayer-of-manasses"
+  ],
+  "excluded_source_records": [
+    {
+      "book": "Tobit",
+      "chapter": 0,
+      "reason": "Non-canonical source prologue or introductory chapter was excluded from normalized Bible chapter data."
+    }
+  ],
   "importer_compatibility": "supported after book-level JSON readiness update; future import must still pass provenance gate",
   "created_for": "Complete Bible Source Acquisition & Validation sprint",
   "created_at": "2026-08-24"

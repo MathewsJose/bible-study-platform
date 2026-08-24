@@ -31,7 +31,6 @@ final readonly class BibleCorpusAuditService
         $invalidCanonicalOrdering = [];
         $unexpectedBooks = [];
         $sourceIdentityWarnings = [];
-        $lastCanonicalOrder = 0;
         $totalChapters = 0;
         $totalVerses = 0;
 
@@ -40,6 +39,7 @@ final readonly class BibleCorpusAuditService
             $files[] = $file;
             $sourceIdentityWarnings = array_merge($sourceIdentityWarnings, $file['identity_warnings']);
             $fileReferenceSeen = [];
+            $lastCanonicalOrder = 0;
 
             foreach ($file['chapters'] as $chapter) {
                 $rawBook = (string) $chapter['book'];
