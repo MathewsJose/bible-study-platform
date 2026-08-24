@@ -42,7 +42,9 @@ final readonly class BibleCorpusAuditService
             $fileReferenceSeen = [];
 
             foreach ($file['chapters'] as $chapter) {
-                $book = (string) $chapter['book'];
+                $rawBook = (string) $chapter['book'];
+                $validBook = $this->canon->isValidBook($rawBook);
+                $book = $validBook ? $this->canon->canonicalBook($rawBook) : $rawBook;
                 $books[$book] ??= ['chapters' => [], 'verses' => 0];
                 $books[$book]['chapters'][(int) $chapter['chapter']] = true;
                 $totalChapters++;
@@ -51,12 +53,14 @@ final readonly class BibleCorpusAuditService
                     $invalidChapters[] = "{$book} {$chapter['chapter']}";
                 }
 
-                if (! $this->canon->isValidBook($book)) {
+                if (! $validBook) {
                     $unexpectedBooks[$book] = true;
                 }
 
                 foreach ($chapter['verses'] as $verse) {
-                    $reference = (string) $verse['reference'];
+                    $reference = $validBook
+                        ? "{$book} {$chapter['chapter']}:{$verse['verse']}"
+                        : (string) $verse['reference'];
                     $totalVerses++;
                     $books[$book]['verses']++;
 
@@ -88,7 +92,7 @@ final readonly class BibleCorpusAuditService
                         $longVerses[] = "{$reference} ({$contentLength})";
                     }
 
-                    if ($this->canon->isValidBook($book) && (int) $chapter['chapter'] > 0 && (int) $verse['verse'] > 0) {
+                    if ($validBook && (int) $chapter['chapter'] > 0 && (int) $verse['verse'] > 0) {
                         $canonicalOrder = $this->canon->canonicalOrder($book, (int) $chapter['chapter'], (int) $verse['verse']);
                         if ($canonicalOrder <= $lastCanonicalOrder) {
                             $invalidCanonicalOrdering[] = $reference;
@@ -104,6 +108,10 @@ final readonly class BibleCorpusAuditService
         sort($foundBooks);
         $missingBooks = array_values(array_diff($expectedBooks, $foundBooks));
         $deuterocanonicalFound = array_values(array_intersect($this->canon->deuterocanonicalBooks(), $foundBooks));
+        $formats = array_values(array_unique(array_filter(array_map(
+            static fn (array $file): string => (string) ($file['format'] ?? ''),
+            $files,
+        ), static fn (string $format): bool => $format !== '')));
 
         return [
             'summary' => [
@@ -114,6 +122,19 @@ final readonly class BibleCorpusAuditService
                 'verses_found' => $totalVerses,
                 'complete_catholic_canon' => $missingBooks === [] && $unexpectedBooks === [],
                 'deuterocanonical_books_found' => count($deuterocanonicalFound),
+                'duplicate_references' => count($duplicateReferences),
+                'duplicate_references_within_source' => count(array_unique($duplicateReferencesWithinSource)),
+                'malformed_references' => count(array_unique($malformedReferences)),
+            ],
+            'source_summary' => [
+                'translation' => $this->metadataValue($files, 'translation'),
+                'language' => $this->metadataValue($files, 'language'),
+                'source_url' => $this->metadataValue($files, 'source_url'),
+                'license' => $this->metadataValue($files, 'license'),
+                'license_url' => $this->metadataValue($files, 'license_url'),
+                'source_edition' => $this->metadataValue($files, 'source_edition'),
+                'formats' => $formats,
+                'format' => count($formats) === 1 ? $formats[0] : ($formats === [] ? null : 'mixed'),
             ],
             'expected_books' => $expectedBooks,
             'books_found' => $foundBooks,
@@ -186,9 +207,11 @@ final readonly class BibleCorpusAuditService
             ];
         }
 
-        $chapters = isset($payload['books'])
-            ? $this->chaptersFromBooksPayload($payload)
-            : [$this->chapterFromPayload($payload)];
+        $chapters = match (true) {
+            isset($payload['books']) => $this->chaptersFromBooksPayload($payload),
+            isset($payload['book'], $payload['chapters']) => $this->chaptersFromBookPayload($payload),
+            default => [$this->chapterFromPayload($payload)],
+        };
         $metadata = [
             'translation' => $payload['translation'] ?? $payload['translation_id'] ?? null,
             'language' => $payload['language'] ?? null,
@@ -201,7 +224,7 @@ final readonly class BibleCorpusAuditService
         return [
             'path' => $path,
             'readable' => true,
-            'format' => isset($payload['books']) ? 'multi_book_json' : 'single_chapter_json',
+            'format' => $this->format($payload),
             'errors' => [],
             'metadata' => $metadata,
             'identity_warnings' => $this->sourceIdentityWarnings($path, $metadata),
@@ -231,6 +254,27 @@ final readonly class BibleCorpusAuditService
                     'book' => $book['book'] ?? $book['name'] ?? '',
                 ]));
             }
+        }
+
+        return $chapters;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return list<array{book: string, chapter: int, verses: list<array{reference: string, verse: int, text: string}>}>
+     */
+    private function chaptersFromBookPayload(array $payload): array
+    {
+        $chapters = [];
+
+        foreach ((array) ($payload['chapters'] ?? []) as $chapter) {
+            if (! is_array($chapter)) {
+                continue;
+            }
+
+            $chapters[] = $this->chapterFromPayload(array_merge($chapter, [
+                'book' => $payload['book'] ?? $payload['short_title'] ?? '',
+            ]));
         }
 
         return $chapters;
@@ -269,6 +313,16 @@ final readonly class BibleCorpusAuditService
     private function validReference(string $reference): bool
     {
         return preg_match('/^[1-3]?\s?[A-Za-z][A-Za-z ]+\s+\d+:\d+$/', $reference) === 1;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function format(array $payload): string
+    {
+        return match (true) {
+            isset($payload['books']) => 'multi_book_json',
+            isset($payload['book'], $payload['chapters']) => 'single_book_json',
+            default => 'single_chapter_json',
+        };
     }
 
     /**
@@ -327,5 +381,26 @@ final readonly class BibleCorpusAuditService
         }
 
         return $rows;
+    }
+
+    /**
+     * @param  list<array{metadata: array<string, mixed>}>  $files
+     */
+    private function metadataValue(array $files, string $key): ?string
+    {
+        $values = array_values(array_unique(array_filter(array_map(
+            static fn (array $file): string => trim((string) ($file['metadata'][$key] ?? '')),
+            $files,
+        ), static fn (string $value): bool => $value !== '')));
+
+        if ($values === []) {
+            return null;
+        }
+
+        if (count($values) === 1) {
+            return $values[0];
+        }
+
+        return 'mixed';
     }
 }

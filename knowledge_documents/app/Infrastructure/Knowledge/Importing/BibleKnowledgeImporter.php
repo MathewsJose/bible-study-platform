@@ -42,6 +42,7 @@ final class BibleKnowledgeImporter extends AbstractFileKnowledgeImporter
         return is_array($payload)
             && (
                 isset($payload['book'], $payload['chapter'], $payload['verses'])
+                || isset($payload['book'], $payload['chapters'])
                 || isset($payload['books'])
             );
     }
@@ -55,7 +56,7 @@ final class BibleKnowledgeImporter extends AbstractFileKnowledgeImporter
             return ValidationResult::invalid(['Bible import JSON is invalid: '.$exception->getMessage()]);
         }
 
-        if (! isset($payload['books']) && ! isset($payload['book'], $payload['chapter'], $payload['verses'])) {
+        if (! isset($payload['books']) && ! isset($payload['book'], $payload['chapter'], $payload['verses']) && ! isset($payload['book'], $payload['chapters'])) {
             $errors = [];
 
             if (! array_key_exists('book', $payload)) {
@@ -70,7 +71,7 @@ final class BibleKnowledgeImporter extends AbstractFileKnowledgeImporter
                 $errors[] = 'The verses field is required.';
             }
 
-            return ValidationResult::invalid($errors === [] ? ['Bible payload must contain books or a chapter.'] : $errors);
+            return ValidationResult::invalid($errors === [] ? ['Bible payload must contain books, book chapters, or a chapter.'] : $errors);
         }
 
         if ($chapters === []) {
@@ -260,6 +261,10 @@ final class BibleKnowledgeImporter extends AbstractFileKnowledgeImporter
             return [$this->chapterFromPayload($payload)];
         }
 
+        if (isset($payload['book'], $payload['chapters'])) {
+            return $this->chaptersFromBookPayload($payload);
+        }
+
         $chapters = [];
 
         foreach ($payload['books'] ?? [] as $book) {
@@ -270,6 +275,35 @@ final class BibleKnowledgeImporter extends AbstractFileKnowledgeImporter
                     'testament' => $book['testament'] ?? null,
                 ]));
             }
+        }
+
+        return $chapters;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return list<array{
+     *     book: string,
+     *     book_abbreviation: string|null,
+     *     testament: string|null,
+     *     chapter: int,
+     *     verses: list<array{verse: int, text: string, cross_references: list<string>}>
+     * }>
+     */
+    private function chaptersFromBookPayload(array $payload): array
+    {
+        $chapters = [];
+
+        foreach ($payload['chapters'] ?? [] as $chapter) {
+            if (! is_array($chapter)) {
+                continue;
+            }
+
+            $chapters[] = $this->chapterFromPayload(array_merge($chapter, [
+                'book' => $payload['book'] ?? $payload['short_title'] ?? '',
+                'book_abbreviation' => $payload['book_abbreviation'] ?? $payload['abbreviation'] ?? null,
+                'testament' => $payload['testament'] ?? null,
+            ]));
         }
 
         return $chapters;

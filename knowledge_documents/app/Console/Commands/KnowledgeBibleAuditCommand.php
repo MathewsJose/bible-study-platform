@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Application\Knowledge\Importing\Services\BibleCorpusAuditService;
+use App\Application\Knowledge\Importing\DTOs\ProvenanceGateResult;
 use App\Application\Knowledge\Importing\Services\KnowledgeSourceRegistry;
 use App\Application\Knowledge\Importing\Services\ProvenanceGate;
 use Illuminate\Console\Command;
@@ -30,6 +31,7 @@ final class KnowledgeBibleAuditCommand extends Command
         $gateResult = $gate->evaluate($sources->resolve('bible'), $this->option('source-id') ? (string) $this->option('source-id') : null);
         $result['provenance'] = $gateResult->toArray();
         $result['import_ready'] = $gateResult->allowed && (bool) $result['summary']['complete_catholic_canon'];
+        $result['readiness'] = $this->readiness($result, $gateResult);
 
         if ($this->option('format') === 'json') {
             $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
@@ -37,14 +39,45 @@ final class KnowledgeBibleAuditCommand extends Command
             return $result['import_ready'] ? self::SUCCESS : self::FAILURE;
         }
 
-        $this->line('Bible Corpus Audit');
-        $this->line('Files: '.$result['summary']['files']);
-        $this->line('Expected Catholic books: '.$result['summary']['expected_books']);
-        $this->line('Books found: '.$result['summary']['books_found']);
-        $this->line('Chapters found: '.$result['summary']['chapters_found']);
-        $this->line('Verses found: '.$result['summary']['verses_found']);
-        $this->line('Complete Catholic canon: '.($result['summary']['complete_catholic_canon'] ? 'yes' : 'no'));
-        $this->line('Import ready: '.($result['import_ready'] ? 'yes' : 'no'));
+        $readiness = $result['readiness'];
+
+        $this->line('BIBLE SOURCE READINESS');
+        $this->line('Source: '.$this->display($readiness['source']['name']));
+        $this->line('Translation: '.$this->display($readiness['source']['translation']));
+        $this->line('Edition: '.$this->display($readiness['source']['edition']));
+        $this->line('Format: '.$this->display($readiness['source']['format']));
+        $this->newLine();
+        $this->line('Books:');
+        $this->line('Expected: '.$readiness['books']['expected']);
+        $this->line('Found: '.$readiness['books']['found']);
+        $this->newLine();
+        $this->line('Chapters:');
+        $this->line('Found: '.$readiness['chapters']['found']);
+        $this->newLine();
+        $this->line('Verses:');
+        $this->line('Found: '.$readiness['verses']['found']);
+        $this->newLine();
+        $this->line('Deuterocanonical:');
+        $this->line('Expected: '.$readiness['deuterocanonical']['expected']);
+        $this->line('Found: '.$readiness['deuterocanonical']['found']);
+        $this->newLine();
+        $this->line('Duplicate references: '.$readiness['duplicate_references']);
+        $this->newLine();
+        $this->line('Provenance:');
+        $this->line('Source URL: '.$this->display($readiness['provenance']['source_url']));
+        $this->line('License: '.$this->display($readiness['provenance']['license']));
+        $this->line('License URL: '.$this->display($readiness['provenance']['license_url']));
+        $this->line('Copyright: '.$this->display($readiness['provenance']['copyright']));
+        $this->line('Verification: '.$this->display($readiness['provenance']['verification']));
+        $this->newLine();
+        $this->line('Import readiness: '.($readiness['import_ready'] ? 'YES' : 'NO'));
+
+        if ($readiness['blocking_reasons'] !== []) {
+            $this->warn('Blocking reasons:');
+            foreach ($readiness['blocking_reasons'] as $reason) {
+                $this->warn('- '.$reason);
+            }
+        }
 
         $this->table(['Book', 'Chapters', 'Verses'], array_map(
             static fn (string $book, array $counts): array => [$book, $counts['chapters'], $counts['verses']],
@@ -89,6 +122,90 @@ final class KnowledgeBibleAuditCommand extends Command
         }
 
         return $result['import_ready'] ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    private function readiness(array $result, ProvenanceGateResult $gateResult): array
+    {
+        $sourceSummary = $result['source_summary'];
+        $source = $gateResult->source;
+        $blockingReasons = [];
+
+        foreach ([
+            'books_missing' => 'Missing books: ',
+            'books_unexpected' => 'Unexpected books: ',
+            'duplicate_references_within_source' => 'Duplicate references within source: ',
+            'malformed_references' => 'Malformed references: ',
+            'invalid_chapters' => 'Invalid chapters: ',
+            'invalid_verses' => 'Invalid verses: ',
+            'empty_verses' => 'Empty verses: ',
+            'source_identity_warnings' => '',
+        ] as $key => $prefix) {
+            if ($result[$key] !== []) {
+                $blockingReasons[] = $prefix.implode(', ', array_slice($this->strings($result[$key]), 0, 20));
+            }
+        }
+
+        foreach ($gateResult->errors as $error) {
+            $blockingReasons[] = $error;
+        }
+
+        return [
+            'source' => [
+                'name' => $source?->name,
+                'translation' => $sourceSummary['translation'],
+                'edition' => $sourceSummary['source_edition'] ?? $source?->edition,
+                'format' => $sourceSummary['format'],
+            ],
+            'books' => [
+                'expected' => $result['summary']['expected_books'],
+                'found' => $result['summary']['books_found'],
+            ],
+            'chapters' => [
+                'found' => $result['summary']['chapters_found'],
+            ],
+            'verses' => [
+                'found' => $result['summary']['verses_found'],
+            ],
+            'deuterocanonical' => [
+                'expected' => count($result['deuterocanonical']['expected']),
+                'found' => count($result['deuterocanonical']['found']),
+            ],
+            'duplicate_references' => $result['summary']['duplicate_references'] + $result['summary']['duplicate_references_within_source'],
+            'provenance' => [
+                'source_url' => $sourceSummary['source_url'] ?? $source?->sourceUrl,
+                'license' => $sourceSummary['license'] ?? $source?->license,
+                'license_url' => $sourceSummary['license_url'] ?? $source?->licenseUrl,
+                'copyright' => $source?->copyrightStatus->value,
+                'verification' => $source?->verificationStatus->value,
+            ],
+            'import_ready' => $result['import_ready'],
+            'blocking_reasons' => array_values(array_unique(array_filter(
+                $blockingReasons,
+                static fn (string $reason): bool => trim($reason) !== '',
+            ))),
+        ];
+    }
+
+    private function display(mixed $value): string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? 'unknown' : $value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function strings(mixed $value): array
+    {
+        return array_values(array_map(
+            static fn (mixed $item): string => (string) $item,
+            is_array($value) ? $value : [],
+        ));
     }
 
     /**
