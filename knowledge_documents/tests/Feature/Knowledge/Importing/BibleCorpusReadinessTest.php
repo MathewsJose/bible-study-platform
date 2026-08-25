@@ -212,20 +212,21 @@ it('normalizes book level bible json files through the existing importer', funct
         ->and($documents[2]->reference)->toBe('John 1');
 });
 
-it('validates the candidate source manifest remains non approved', function (): void {
+it('validates the manually approved candidate source manifest', function (): void {
     $manifest = json_decode((string) file_get_contents(base_path('docs/source-manifests/original-douay-rheims-1582-1610.json')), true, 512, JSON_THROW_ON_ERROR);
 
     expect($manifest['source_id'])->toBe('bible.original_douay_rheims_1582_1610')
         ->and($manifest['expected_books'])->toBe(73)
         ->and($manifest['expected_deuterocanonical_books'])->toHaveCount(7)
         ->and($manifest['license'])->toContain('CC0')
-        ->and($manifest['verification_status'])->toBe('requires_verification')
-        ->and($manifest['import_allowed'])->toBeFalse()
-        ->and($manifest['copyright_status'])->toBe('requires_verification')
+        ->and($manifest['verification_status'])->toBe('approved')
+        ->and($manifest['import_allowed'])->toBeTrue()
+        ->and($manifest['copyright_status'])->toBe('public_domain')
         ->and($manifest['repository_commit'])->toBe('0bf4218b9b46b5b00d29a703b5b74226051b97a5')
         ->and($manifest['checksum'])->toBe('f72f81c450096401b59d3f7d08bee054690411b5d18f0e922223d6192fee14e4')
         ->and($manifest['content_checksum'])->toBe('864d1e7aeb06f855d64124ae8353aa62184276f28349a0b0fe759c19df306738')
-        ->and($manifest['candidate_status'])->toBe('technically_staged_requires_provenance_verification');
+        ->and($manifest['candidate_status'])->toBe('approved_for_controlled_import_preparation')
+        ->and($manifest['rights_notes'])->toContain('Manually approved by the project owner on 2026-08-25');
 });
 
 it('reports catholic canon gaps unexpected books invalid references and source identity gaps', function (): void {
