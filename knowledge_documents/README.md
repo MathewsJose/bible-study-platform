@@ -1217,6 +1217,15 @@ curl "http://localhost:8080/api/v1/knowledge/reference/John%201%3A14"
 curl "http://localhost:8080/api/v1/knowledge/reference/CCC%20456"
 ```
 
+Reference resolution is deterministic when more than one source has the same plain reference. If no explicit source is supplied, Bible references prefer the configured canonical Catholic Bible source, `KNOWLEDGE_CANONICAL_BIBLE_SOURCE_NAME`, which defaults to `Douay-Rheims Bible`. The companion `KNOWLEDGE_CANONICAL_BIBLE_TRANSLATION` defaults to `douay_rheims` and is used as a secondary Bible-source preference. Existing legacy Bible records are preserved as historical source records and are still available by explicit source or translation selection.
+
+Explicit source selection:
+
+```bash
+curl "http://localhost:8080/api/v1/knowledge/reference/John%201%3A1?source_name=Douay-Rheims%20Bible"
+curl "http://localhost:8080/api/v1/knowledge/reference/John%201%3A1?translation=douay_rheims"
+```
+
 Related knowledge:
 
 ```bash

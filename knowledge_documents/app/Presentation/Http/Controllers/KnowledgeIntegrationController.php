@@ -17,6 +17,7 @@ use App\Application\Knowledge\Retrieval\Services\RetrievalEngine;
 use App\Application\Knowledge\Security\Contracts\AISecurityPolicyInterface;
 use App\Application\Knowledge\Security\Exceptions\AISecurityException;
 use App\Application\Knowledge\Services\SearchKnowledgeDocumentsService;
+use App\Domain\Knowledge\Enums\SourceType;
 use App\Infrastructure\Knowledge\Agents\Persistence\AgentReplayRecord;
 use App\Http\Controllers\Controller;
 use App\Presentation\Http\Requests\AnswerQuestionRequest;
@@ -28,6 +29,8 @@ use App\Presentation\Http\Requests\RunAgentRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 final class KnowledgeIntegrationController extends Controller
@@ -74,9 +77,22 @@ final class KnowledgeIntegrationController extends Controller
         ]);
     }
 
-    public function reference(string $reference): JsonResponse
+    public function reference(Request $request, string $reference): JsonResponse
     {
-        $document = $this->references->resolve(urldecode($reference));
+        $validator = Validator::make($request->query(), [
+            'source_name' => ['sometimes', 'string', 'max:255'],
+            'source_type' => ['sometimes', 'string', Rule::in(SourceType::values())],
+            'translation' => ['sometimes', 'string', 'max:120'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid reference resolution request.',
+                'errors' => $validator->errors(),
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $document = $this->references->resolve(urldecode($reference), $validator->validated());
 
         if ($document === null) {
             return response()->json([

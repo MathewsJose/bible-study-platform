@@ -15,6 +15,10 @@ return [
             App\Infrastructure\Knowledge\Importing\ChurchFathersKnowledgeImporter::class,
         ],
     ],
+    'reference_resolution' => [
+        'canonical_bible_source_name' => env('KNOWLEDGE_CANONICAL_BIBLE_SOURCE_NAME', 'Douay-Rheims Bible'),
+        'canonical_bible_translation' => env('KNOWLEDGE_CANONICAL_BIBLE_TRANSLATION', 'douay_rheims'),
+    ],
     'hybrid_search' => [
         'weights' => [
             'semantic' => (float) env('HYBRID_SEARCH_SEMANTIC_WEIGHT', 0.65),
