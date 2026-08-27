@@ -8,6 +8,37 @@ use App\Infrastructure\Knowledge\Persistence\RetrievalContextualDocumentRecord;
 
 final readonly class ContextualIndexBenchmarkService
 {
+    /** @var array<string, array<string, float|int>> */
+    private const Sprint28K5Baseline = [
+        'vector' => [
+            'hit_rate' => 0.5,
+            'precision' => 0.167,
+            'recall' => 0.25,
+            'mrr' => 0.5,
+            'ndcg' => 0.436,
+            'source_coverage' => 0.75,
+            'latency_ms' => 107,
+        ],
+        'lexical' => [
+            'hit_rate' => 0.333,
+            'precision' => 0.1,
+            'recall' => 0.25,
+            'mrr' => 0.208,
+            'ndcg' => 0.186,
+            'source_coverage' => 0.75,
+            'latency_ms' => 106,
+        ],
+        'hybrid' => [
+            'hit_rate' => 0.5,
+            'precision' => 0.167,
+            'recall' => 0.25,
+            'mrr' => 0.417,
+            'ndcg' => 0.384,
+            'source_coverage' => 0.75,
+            'latency_ms' => 251,
+        ],
+    ];
+
     public function __construct(
         private Sprint30RetrievalDataset $dataset,
         private ContextualIndexSearchService $search,
@@ -26,7 +57,8 @@ final readonly class ContextualIndexBenchmarkService
         $embedded = RetrievalContextualDocumentRecord::query()->where('context_window', $window)->whereNotNull('embedding')->count();
 
         $result = [
-            'decision' => $embedded === 0 ? 'BLOCKED' : 'DIAGNOSTIC INCONCLUSIVE',
+            'decision' => 'BLOCKED',
+            'sprint28_baseline' => self::Sprint28K5Baseline,
             'dataset' => [
                 'version' => $this->dataset->version(),
                 'defined_questions' => count($allQuestions),
@@ -72,6 +104,7 @@ final readonly class ContextualIndexBenchmarkService
         $result['by_category'] = $this->summarizeByCategory($rowsByK[10]);
         $result['john_1_1'] = $this->johnDiagnostic($window);
         $result['citation_integrity'] = $this->citationIntegrity($window);
+        $result['decision'] = $this->decision($result['metrics']['k5']);
 
         return $result;
     }
@@ -97,6 +130,7 @@ final readonly class ContextualIndexBenchmarkService
             'precision' => $results === [] ? 0.0 : count($relevant) / count($results),
             'recall' => $expected === [] ? 0.0 : count($relevant) / count($expected),
             'reciprocal_rank' => $rank === null ? 0.0 : 1 / $rank,
+            'ndcg' => $this->ndcg($references, $expected),
             'source_coverage' => $question['expected_source_types'] === [] ? 1.0 : count($foundSourceTypes) / count($question['expected_source_types']),
             'failed' => $relevant === [],
         ];
@@ -116,6 +150,7 @@ final readonly class ContextualIndexBenchmarkService
             'precision' => round(array_sum(array_column($rows, 'precision')) / $total, 6),
             'recall' => round(array_sum(array_column($rows, 'recall')) / $total, 6),
             'mrr' => round(array_sum(array_column($rows, 'reciprocal_rank')) / $total, 6),
+            'ndcg' => round(array_sum(array_column($rows, 'ndcg')) / $total, 6),
             'source_coverage' => round(array_sum(array_column($rows, 'source_coverage')) / $total, 6),
             'latency_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             'failed_questions' => array_values(array_map(
@@ -123,6 +158,17 @@ final readonly class ContextualIndexBenchmarkService
                 array_filter($rows, static fn (array $row): bool => (bool) $row['failed']),
             )),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $metrics
+     */
+    private function decision(array $metrics): string
+    {
+        return (float) $metrics['hit_rate'] >= self::Sprint28K5Baseline['vector']['hit_rate']
+            && (float) $metrics['mrr'] >= self::Sprint28K5Baseline['vector']['mrr']
+            ? 'PASS'
+            : 'REGRESSION';
     }
 
     /**
@@ -205,6 +251,34 @@ final readonly class ContextualIndexBenchmarkService
         }
 
         return null;
+    }
+
+    /**
+     * @param  list<string>  $references
+     * @param  list<string>  $expected
+     */
+    private function ndcg(array $references, array $expected): float
+    {
+        if ($references === [] || $expected === []) {
+            return 0.0;
+        }
+
+        $dcg = 0.0;
+        $seen = [];
+
+        foreach ($references as $index => $reference) {
+            if (in_array($reference, $expected, true) && ! isset($seen[$reference])) {
+                $dcg += 1 / log($index + 2, 2);
+                $seen[$reference] = true;
+            }
+        }
+
+        $idcg = 0.0;
+        for ($index = 0; $index < min(count($references), count($expected)); $index++) {
+            $idcg += 1 / log($index + 2, 2);
+        }
+
+        return $idcg <= 0.0 ? 0.0 : round($dcg / $idcg, 6);
     }
 
     /**

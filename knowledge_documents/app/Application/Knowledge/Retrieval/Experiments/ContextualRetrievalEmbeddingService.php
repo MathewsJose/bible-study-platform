@@ -116,21 +116,51 @@ final readonly class ContextualRetrievalEmbeddingService
      */
     private function store(RetrievalContextualDocumentRecord $record, array $embedding): void
     {
-        $record->forceFill([
-            'embedding' => $this->formatEmbedding($embedding),
+        $values = [
             'embedding_provider' => (string) config('embeddings.provider', 'null'),
             'embedding_model' => $this->provider->identifier(),
             'embedding_dimensions' => count($embedding),
             'embedded_at' => now(),
             'embedding_error' => null,
-        ])->save();
+            'updated_at' => now(),
+        ];
+
+        if (DB::getDriverName() !== 'pgsql') {
+            RetrievalContextualDocumentRecord::query()
+                ->whereKey($record->id)
+                ->update([
+                    ...$values,
+                    'embedding' => $this->formatEmbedding($embedding),
+                ]);
+
+            return;
+        }
+
+        $table = (new RetrievalContextualDocumentRecord())->getTable();
+
+        DB::update(
+            "update {$table} set embedding = ?::vector, embedding_provider = ?, embedding_model = ?, embedding_dimensions = ?, embedded_at = ?, embedding_error = ?, updated_at = ? where id = ?",
+            [
+                $this->formatEmbedding($embedding),
+                $values['embedding_provider'],
+                $values['embedding_model'],
+                $values['embedding_dimensions'],
+                $values['embedded_at'],
+                $values['embedding_error'],
+                $values['updated_at'],
+                $record->id,
+            ],
+        );
     }
 
     private function markFailed(RetrievalContextualDocumentRecord $record, string $message): void
     {
-        $record->forceFill([
-            'embedding_error' => $message,
-        ])->save();
+        RetrievalContextualDocumentRecord::query()
+            ->whereKey($record->id)
+            ->update([
+                'embedding_error' => mb_substr($message, 0, 4000),
+                'updated_at' => now(),
+            ]);
     }
 
     /**

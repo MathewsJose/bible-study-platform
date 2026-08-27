@@ -71,6 +71,7 @@ final class EvaluateContextualIndexCommand extends Command
                 number_format((float) $values['hit_rate'] * 100, 1).'%',
                 number_format((float) $values['recall'], 3),
                 number_format((float) $values['mrr'], 3),
+                number_format((float) ($values['ndcg'] ?? 0.0), 3),
                 number_format((float) $values['source_coverage'] * 100, 1).'%',
                 $values['latency_ms'].' ms',
             ];
@@ -82,7 +83,7 @@ final class EvaluateContextualIndexCommand extends Command
             return;
         }
 
-        $this->table(['K', 'Hit', 'Recall', 'MRR', 'Source Coverage', 'Latency'], $rows);
+        $this->table(['K', 'Hit', 'Recall', 'MRR', 'NDCG', 'Source Coverage', 'Latency'], $rows);
     }
 
     /**
@@ -151,8 +152,8 @@ final class EvaluateContextualIndexCommand extends Command
         }
 
         $lines = [
-            '| Scope | Questions | Hit Rate | Precision | Recall | MRR | Source Coverage | Latency |',
-            '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+            '| Scope | Questions | Hit Rate | Precision | Recall | MRR | NDCG | Source Coverage | Latency |',
+            '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
         ];
 
         foreach ($metrics as $scope => $values) {
@@ -166,6 +167,7 @@ final class EvaluateContextualIndexCommand extends Command
                 .number_format((float) ($values['precision'] ?? 0.0), 3).' | '
                 .number_format((float) $values['recall'], 3).' | '
                 .number_format((float) $values['mrr'], 3).' | '
+                .number_format((float) ($values['ndcg'] ?? 0.0), 3).' | '
                 .number_format((float) $values['source_coverage'], 3).' | '
                 .$values['latency_ms'].' ms |';
         }
