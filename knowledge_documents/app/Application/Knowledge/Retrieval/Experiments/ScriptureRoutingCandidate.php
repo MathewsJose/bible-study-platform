@@ -24,6 +24,7 @@ final readonly class ScriptureRoutingCandidate
     {
         return [
             'rank' => $rank,
+            'id' => $this->id,
             'source_type' => $this->sourceType,
             'source_name' => $this->sourceName,
             'reference' => $this->reference,

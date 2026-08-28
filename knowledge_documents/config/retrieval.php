@@ -17,6 +17,11 @@ return [
         'default_token_budget' => (int) env('RETRIEVAL_TOKEN_BUDGET', 2500),
     ],
 
+    'scripture_router' => [
+        'enabled' => (bool) env('RETRIEVAL_SCRIPTURE_ROUTER_ENABLED', false),
+        'mode' => env('RETRIEVAL_SCRIPTURE_ROUTER_MODE', 'hybrid_router'),
+    ],
+
     'profiles' => [
         'ai_answer' => [
             'top_k' => (int) env('RETRIEVAL_AI_TOP_K', 10),

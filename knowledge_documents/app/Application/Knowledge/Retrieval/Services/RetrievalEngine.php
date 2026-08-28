@@ -27,6 +27,7 @@ final readonly class RetrievalEngine
         private RetrievalFusionService $fusion,
         private RerankerService $reranker,
         private ContextBuilder $context,
+        private ScriptureRoutingRetrievalAdapter $scriptureRouter,
     ) {}
 
     /**
@@ -59,6 +60,17 @@ final readonly class RetrievalEngine
                 weights: $retrievalProfile->weights,
                 includeExplanations: $includeExplanations && $retrievalProfile->includeExplanations,
             );
+        }
+
+        if ((bool) config('retrieval.scripture_router.enabled', false)) {
+            try {
+                return $this->scriptureRouter->retrieve($query, $retrievalProfile, $filters);
+            } catch (\Throwable $exception) {
+                Log::warning('Experimental Scripture router failed; falling back to production retrieval.', [
+                    'exception' => $exception,
+                    'profile' => $retrievalProfile->identifier,
+                ]);
+            }
         }
 
         $stageStartedAt = microtime(true);
